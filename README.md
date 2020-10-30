@@ -5,6 +5,11 @@ Smallish program to trace rays through the optical setup from this [paper](https
 Currently models a point source from centre of bottle, and a ring of point sources on bottle's surface.
 
 
+![Image of Rays from ring of sources](https://github.com/lewisfish/OpticalRayTrace/raw/main/images/ring-rays.png)
+![Image of rays from point source](https://github.com/lewisfish/OpticalRayTrace/raw/main/images/point-rays.png)
+
+
+
 ## Usage
 
 To run one a single core/thread
