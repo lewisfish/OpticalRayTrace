@@ -76,7 +76,9 @@ module lensMod
             return
         end if
         pos = pos + t * dir
-        if(sqrt(pos%x**2 + pos%y**2) > lensRadius)then
+        ! make sure no rays get propagated that are outside lens radius
+        ! this can double as an Iris
+        if(sqrt(pos%x**2 + pos%y**2) > (lensRadius/1.))then
             skip=.true.
             return
         end if

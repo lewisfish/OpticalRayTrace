@@ -40,7 +40,7 @@ module source
     end subroutine point
 
 
-    subroutine ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, iseed)
+    subroutine ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset, iseed)
 
         use vector_class
 
@@ -48,7 +48,7 @@ module source
 
         type(vector), intent(OUT)   :: pos, dir
         integer,      intent(INOUT) :: iseed
-        real,         intent(IN)    :: r1, r2, cosThetaMax, bottleRadius
+        real,         intent(IN)    :: r1, r2, cosThetaMax, bottleRadius, bottleOffset
 
         type(vector) :: lenspoint, x, y, z
         real         :: r, theta, u(2)
@@ -59,10 +59,14 @@ module source
         pos%x = sqrt(r) * cos(theta)
         pos%y = sqrt(r) * sin(theta)
         ! sample on curved bottle r^2 - y
-        pos%z = sqrt((bottleRadius)**2 - pos%y**2)
+        ! b is the offset of the bottle centre on the z axis
+        ! assuming a = 0
+        ! (y-a)^2 + (z-b)^2 = r^2
+        ! bottleOffset = -bottleRadius / 2.d0
+        pos%z = bottleOffset + sqrt((bottleRadius)**2 - pos%y**2)
 
         !create new z-axis
-        lenspoint = vector(0., 0., 40d-3)! ring around point source
+        lenspoint = vector(0., 0., 40d-3)
         z = lenspoint - pos
         z = z%magnitude()
 
