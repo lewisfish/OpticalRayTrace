@@ -51,34 +51,48 @@ module source
         real,         intent(IN)    :: r1, r2, cosThetaMax, bottleRadius, bottleOffset
 
         type(vector) :: lenspoint, x, y, z
-        real         :: r, theta, u(2)
+        real         :: r, theta, u(2), posx, posy, posz, dist, nxp, nyp, nzp
 
         !sample on an annulus radii, r1, r2
         r = ranu(r1, r2, iseed)
         theta = ran2(iseed) * twopi
-        pos%x = sqrt(r) * cos(theta)
-        pos%y = sqrt(r) * sin(theta)
+        posx = sqrt(r) * cos(theta)
+        posy = sqrt(r) * sin(theta)
         ! sample on curved bottle r^2 - y
         ! b is the offset of the bottle centre on the z axis
         ! assuming a = 0
         ! (y-a)^2 + (z-b)^2 = r^2
         ! bottleOffset = -bottleRadius / 2.d0
-        pos%z = bottleOffset + sqrt((bottleRadius)**2 - pos%y**2)
+        posz = bottleOffset + sqrt((bottleRadius)**2 - posy**2)
+        pos = vector(posx, posy, posz)
 
         !create new z-axis
-        lenspoint = vector(0., 0., 40d-3)
-        z = lenspoint - pos
-        z = z%magnitude()
+        r = ranu(0., 12.7d-3**2, iseed)!0.21787185!0.20427731
+        theta = ran2(iseed) * twopi
+        posx = sqrt(r) * cos(theta)
+        posy = sqrt(r) * sin(theta)
+        lenspoint = vector(posx, posy, 37.5d-3)
 
+        ! z = lenspoint - pos
+        ! z = z%magnitude()
+
+        dist = sqrt((lenspoint%x - pos%x)**2 + (lenspoint%y - pos%y)**2 + (lenspoint%z - pos%z)**2)
+        ! print*,dist
+        nxp = (lenspoint%x - pos%x) / dist
+        nyp = (lenspoint%y - pos%y) / dist
+        nzp = (lenspoint%z - pos%z) / dist
+        dir = vector(nxp, nyp, nzp)
+        dir = dir%magnitude()
         ! create new basis
-        x = z .cross. vector(1.,0.,0.)
-        x = x%magnitude()
-        y = z .cross. x
-        y = y%magnitude()
+        ! x = z .cross. vector(1.,0.,0.)
+        ! x = x%magnitude()
+        ! y = z .cross. x
+        ! y = y%magnitude()
 
-        ! sample onto lens
-        u = [ran2(iseed), ran2(iseed)]
-        dir = UniformSampleCone(u, 0.8708510322, x, y, z)
+        ! ! sample onto lens
+        ! u = [ran2(iseed), ran2(iseed)]
+        ! dir = UniformSampleCone(u, 0.8708510322, y, x, z)
+        ! dir = dir%magnitude()
 
     end subroutine ring
 
