@@ -25,7 +25,7 @@ module imageMod
         if(abs(xp) > 200 .or. abs(yp) > 200)then
             return
         end if
-        !$omp atomic
+!$omp atomic
         image(xp,yp, layer) = image(xp,yp, layer) + 1
 
     end subroutine makeImage
@@ -118,82 +118,91 @@ program raytrace
     bottleradius = 17.5d-3
     bottleOffset = 0.*3.5d-3!bottleradius / 2.d0
     ! distance to surface of bottle
-    distance = D1 - bottleradius - bottleOffset
+    distance = D1 - (bottleradius - bottleOffset)
     !https://en.wikipedia.org/wiki/Axicon#/media/File:Erzeugen_von_Besselstrahlen_durch_ein_Axicon.png
     besselDiameter = 2.* distance * tan(alpha*(n-1.))
     !annulus radii, squared as this is required for sampling
-    r1 = besselDiameter/1.1d0 - ringwidth
+    r1 = besselDiameter/1.1d0 - ringWidth
     r2 = (besselDiameter / 2.d0)**2
     r1 = r1**2
-open(newunit=u, file="traj-"//str(bottleOffset, 5)//"-ring.dat")
+    ! open(newunit=u, file="traj-extreme-"//str(bottleOffset, 6)//"-ring.dat", position="append")
 
 !$OMP parallel default(none)&
 !$OMP& shared(L3r1, L3r2, L3r3, L3fb, bottleradius, u, L3radius, nphotons, cosThetaMax, D1, D2, D3)&
 !$OMP& shared(L2Thickness, r1, r2, L2CurveRdaius, image, L3tc1, L3tc2, L2Diameter, l2image, L3image, bottleOffset),&
-!$omp& private(iseed, d, pos, dir, skip), reduction(+:count)
+!$omp& private(iseed, d, pos, dir, skip, tracker), reduction(+:count)
 !$OMP do
     do i = 1, nphotons
         if(mod(i, 1000000) == 0)print*,i,"photons run from ring"
         call ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset, iseed)
-        call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
 
-        call plano_convex(pos, dir, D1, L2Thickness, L2CurveRdaius, u, iseed)
-        call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        call plano_convex(pos, dir, D1, L2Thickness, L2CurveRdaius, tracker, iseed)
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
         call makeImage(l2image, pos, L2Diameter, 1) 
 
-        call achromatic_doublet(pos, dir, D1, D2, D3, L3r1, L3r2, L3r3, L3tc1, L3tc2, L3fb, L3radius, u, iseed, skip)
-        call tracker%push(pointtype(pos%x, pos%y, pos%z))
+
+        call achromatic_doublet(pos, dir, D1, D2, D3, L3r1, L3r2, L3r3, L3tc1, L3tc2, L3fb, L3radius, tracker, iseed, skip)
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
         call makeImage(l3image, pos, L3radius*2, 1)
 
         if(skip)then
             count = count + 1
-            call tracker%zero()
+            ! call tracker%zero()
+            ! do while(.not. tracker%empty())
+            !     write(u,"(3(F10.7,1x))")tracker%pop()
+            ! end do
+            ! write(u,*)" "
+            ! write(u,*)" "
+            ! write(u,*)" "
             cycle
         end if
 
         !move to image plane
         d = (D1+D2+D3 - pos%z) / dir%z
         pos = pos + dir * d
-        call tracker%push(pointtype(pos%x, pos%y, pos%z))
-        do while(.not. tracker%empty())
-            write(u,"(3(F10.7,1x))")tracker%pop()
-        end do
-        write(u,*)" "
-        write(u,*)" "
-        write(u,*)" "
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! do while(.not. tracker%empty())
+        !     write(u,"(3(F10.7,1x))")tracker%pop()
+        ! end do
+        ! write(u,*)" "
+        ! write(u,*)" "
+        ! write(u,*)" "
         call makeImage(image, pos, 1d-2, 1)
     end do
 !$OMP end do
-    close(u)
-    open(newunit=u, file="traj-"//str(bottleOffset, 5)//"-point.dat")
+
+    ! close(u)
+    ! open(newunit=u, file="traj-extreme-"//str(bottleOffset, 6)//"-point.dat", position="append")
 !$omp do
     do i = 1, nphotons
         if(mod(i, 1000000) == 0)print*,i,"photons run from point"
         call point(pos, dir, cosThetaMax, iseed)
-        call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
 
         call plano_convex(pos, dir, D1, L2Thickness, L2CurveRdaius, u, iseed)
-        call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
         call makeImage(l2image, pos, L2Diameter, 2)
 
         call achromatic_doublet(pos, dir, D1, D2, D3, L3r1, L3r2, L3r3, L3tc1, L3tc2, L3fb, L3radius, u, iseed, skip)
         call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
         call makeImage(l3image, pos, L3radius*2, 2)
 
         !move to image plane
         d = (D1+D2+D3 - pos%z) / dir%z
         pos = pos + dir * d
-        call tracker%push(pointtype(pos%x, pos%y, pos%z))
-        do while(.not. tracker%empty())
-            write(u,"(3(F10.7,1x))")tracker%pop()
-        end do
-        write(u,*)" "
-        write(u,*)" "
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! do while(.not. tracker%empty())
+        !     write(u,"(3(F15.9,1x))")tracker%pop()
+        ! end do
+        ! write(u,*)" "
+        ! write(u,*)" "
         write(u,*)" "
         call makeImage(image, pos, 1d-2, 2)
     end do
 !$omp end parallel
-close(u)
+! close(u)
 print*,count/real(nphotons),count
 
 ! call writeImage(l2image, "L2-")
