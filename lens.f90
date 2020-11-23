@@ -1,76 +1,163 @@
 module lensMod
 
+    use vector_class
+
     implicit none
+
+    type :: plano_convex
+
+        real :: thickness, curve_radius, diameter, radius, fb, f
+        real :: n1, n2
+        type(vector) :: centre, flatNormal
+        contains
+        procedure :: forward  => plano_forward_sub
+        ! procedure :: backward => backward_sub
+    end type plano_convex
+
+    interface plano_convex
+        module procedure init_plano_convex
+    end interface plano_convex
+
+    type :: achromatic_doublet
+        real :: thickness1, thickness2, thickness, R1, R2, R3
+        real :: diameter, radius, fb, f
+        real :: n1, n2, n3
+        type(vector) :: centre1, centre2, centre3
+        contains
+        procedure :: forward => doublet_forward_sub
+    end type achromatic_doublet
+
+    interface achromatic_doublet
+        module procedure init_achromatic_doublet
+    end interface achromatic_doublet
+
 
     contains
 
-    subroutine plano_convex(pos, dir, D1, Lt, R, u, iseed)
-        use vector_class
+    type(achromatic_doublet) function init_achromatic_doublet(file, D1) result(this)
 
         implicit none
 
+        character(*), intent(IN) :: file
+        real,         intent(IN) :: D1
+        
+        integer :: u
+
+        open(newunit=u,file=trim(file),status='old')
+            read(u,*) this%thickness1
+            read(u,*) this%thickness2
+            read(u,*) this%R1
+            read(u,*) this%R2
+            read(u,*) this%R3
+            read(u,*) this%diameter
+            read(u,*) this%f
+            read(u,*) this%fb
+            read(u,*) this%n1
+            read(u,*) this%n2
+            read(u,*) this%n3
+        close(u)
+
+        this%radius = this%diameter / 2.d0
+        this%thickness = this%thickness1 + this%thickness2
+
+        this%centre1 = vector(0., 0., D1 + (D1 + this%f) + this%f - this%thickness - this%fb + this%R1)
+        this%centre2 = vector(0., 0., D1 + (D1 + this%f) + this%f - this%thickness - this%fb + this%thickness1 - this%R2)
+        this%centre3 = vector(0., 0., D1 + (D1 + this%f) + this%f - this%fb - this%R3)
+
+    end function init_achromatic_doublet
+
+
+    type(plano_convex) function init_plano_convex(file) result(this)
+
+        implicit none
+
+        character(*), intent(IN) :: file
+
+        integer :: u
+
+        open(newunit=u,file=trim(file),status='old')
+            read(u,*) this%thickness
+            read(u,*) this%curve_radius
+            read(u,*) this%diameter
+            read(u,*) this%f
+            read(u,*) this%fb
+            read(u,*) this%n1
+            read(u,*) this%n2
+        close(u)
+
+        this%radius = this%diameter / 2.d0
+
+        this%centre = vector(0., 0., (this%fb + this%thickness) - this%curve_radius)
+        this%flatNormal = vector(0., 0., -1.)
+
+    end function init_plano_convex
+
+
+    subroutine plano_forward_sub(this, pos, dir, u, iseed)
+
+        use stackMod, only : pointtype, stack
+
+        implicit none
+
+        class(plano_convex) :: this
+
         type(vector), intent(INOUT) :: pos, dir
-        integer,      intent(INOUT) :: iseed, u
-        real,         intent(IN)    :: D1, Lt, R
+        integer,      intent(INOUT) :: iseed
+        type(stack),  intent(INOUT) :: u
 
         type(vector) :: centre, flatNormal, curvedNormal
         real :: n1, n2, n3, d, t
         logical :: flag
 
-        n1 = 1.0  !air
-        n2 = 1.51 !https://www.filmetrics.com/refractive-index-database/Schott+N-BK7
-        n3 = n1
-
         ! move to flat surface
-        d = (D1 - pos%z) / dir%z
+        d = (this%fb - pos%z) / dir%z
         pos = pos + dir * d
+        ! call u%push(pointtype(pos%x, pos%y, pos%z))
 
-        ! centre of lens defining sphere
-        centre = vector(0., 0., (D1 + Lt) - R)
-        !check for refraction on flat surface
-        flatNormal = vector(0., 0., -1.)
         flag = .false.
-        call reflect_refract(dir, flatNormal, n1, n2, iseed, flag)
+        call reflect_refract(dir, this%flatNormal, this%n1, this%n2, iseed, flag)
 
         ! intersect curved side and move to it
-        flag = intersect(pos, dir, t, centre, R)
+        flag = intersect(pos, dir, t, this%centre, this%curve_radius)
         if(.not. flag)error stop "Help"
         pos = pos + t * dir
 
         !refract
-        curvedNormal = centre - pos
+        curvedNormal = this%centre - pos
         curvedNormal = curvedNormal%magnitude()
         flag = .false.
-        call reflect_refract(dir, curvedNormal, n2, n3, iseed, flag)
-    end subroutine plano_convex
+        call reflect_refract(dir, curvedNormal, this%n2, this%n1, iseed, flag)
+    end subroutine plano_forward_sub
 
 
-    subroutine achromatic_doublet(pos, dir, D1, D2, D3, R1, R2, R3, tc1, tc2, fb, lensRadius, u, iseed, skip)
+    subroutine doublet_forward_sub(this, pos, dir, D1, D2, u, iseed, skip)
 
-        use vector_class
+        use stackMod, only : pointtype, stack
 
         implicit none
 
-        real ,        intent(IN)    :: D1, D2, D3, R1, R2, R3, tc1, tc2, fb, lensRadius
+        class(achromatic_doublet) :: this
+
+        real,         intent(IN)    :: D1, D2
         type(vector), intent(INOUT) :: pos, dir
-        integer,      intent(INOUT) :: iseed, u
+        integer,      intent(INOUT) :: iseed
+        type(stack),  intent(INOUT) :: u
         logical,      intent(OUT)   :: skip
 
-        type(vector) :: normal, centre
+        type(vector) :: normal, origpos
         logical      :: flag
-        real         :: n1, n2, n3, n4, t, tc
+        real         :: t, d, r
 
         skip = .false.
 
-        tc = tc1 + tc2
-        n1 = 1.0 !air
-        n2 = 1.64 !https://www.filmetrics.com/refractive-index-database/Schott+N-LAK22
-        n3 = 1.79 !https://www.filmetrics.com/refractive-index-database/Schott+N-SF6
-        n4 = n1
+        ! r = sqrt(pos%x**2 + pos%y**2)
+        ! if(r < this%radius*(8./10.).or. r > this%radius*(10./10.))then
+        !     skip=.true.
+        !     return
+        ! end if
 
         !first sphere
-        centre = vector(0., 0., D1 + D2 + D3 - tc - fb + R1)
-        flag = intersect(pos, dir, t, centre, R1)
+        flag = intersect(pos, dir, t, this%centre1, this%R1)
         if(.not. flag)then
             skip=.true.
             return
@@ -78,45 +165,45 @@ module lensMod
         pos = pos + t * dir
         ! make sure no rays get propagated that are outside lens radius
         ! this can double as an Iris
-        if(sqrt(pos%x**2 + pos%y**2) > (lensRadius/1.))then
+        r = sqrt(pos%x**2 + pos%y**2)
+        if(r > (this%radius*(1.)))then
             skip=.true.
             return
         end if
 
-        normal = pos - centre
+        normal = pos - this%centre1
         normal = normal%magnitude()
 
         flag = .false.
-        call reflect_refract(dir, normal, n1, n2, iseed, flag)
+        call reflect_refract(dir, normal, this%n1, this%n2, iseed, flag)
 
 
         !second sphere
-        centre = vector(0., 0., D1 + D2 + D3 - tc - fb + tc1 - R2)
-        flag = intersect(pos, dir, t, centre, R2)
+        flag = intersect(pos, dir, t, this%centre2, this%R2)
         if(.not. flag)then
             skip = .true.
             return
         end if
         pos = pos + t * dir
-        normal = centre - pos
+
+        normal = this%centre2 - pos
         normal = normal%magnitude()
 
         flag = .false.
-        call reflect_refract(dir, normal, n2, n3, iseed, flag)
+        call reflect_refract(dir, normal,this%n2, this%n3, iseed, flag)
 
-
-        !second sphere
-        centre = vector(0., 0., D1 + D2 + D3 - fb - R3)
-        flag = intersect(pos, dir, t, centre, R3)
+        !third sphere
+        flag = intersect(pos, dir, t, this%centre3, this%R3)
         if(.not. flag)error stop "Help3"
         pos = pos + t * dir
-        normal = centre - pos
+
+        normal = this%centre3 - pos
         normal = normal%magnitude()
 
         flag = .false.
-        call reflect_refract(dir, normal, n3, n4, iseed, flag)
+        call reflect_refract(dir, normal, this%n3, this%n1, iseed, flag)
 
-    end subroutine achromatic_doublet
+    end subroutine doublet_forward_sub
 
 
     logical function intersect(orig, dir, t, centre, radius)
@@ -197,7 +284,6 @@ module lensMod
 
     subroutine reflect_refract(I, N, n1, n2, iseed, rflag)
 
-        use vector_class
         use random, only : ran2
 
         implicit none
@@ -224,7 +310,6 @@ module lensMod
     !   get vector of reflected photon
     !
     !
-        use vector_class
 
         implicit none
 
@@ -243,7 +328,6 @@ module lensMod
     !   get vector of refracted photon
     !
     !
-        use vector_class
 
         implicit none
 
@@ -277,7 +361,6 @@ module lensMod
     !   calculates the fresnel coefficents
     !
     !
-        use vector_class
         use ieee_arithmetic, only : ieee_is_nan
 
         implicit none

@@ -58,6 +58,7 @@ module source
         theta = ran2(iseed) * twopi
         posx = sqrt(r) * cos(theta)
         posy = sqrt(r) * sin(theta)
+
         ! sample on curved bottle r^2 - y
         ! b is the offset of the bottle centre on the z axis
         ! assuming a = 0
@@ -73,26 +74,14 @@ module source
         posy = sqrt(r) * sin(theta)
         lenspoint = vector(posx, posy, 37.5d-3)
 
-        ! z = lenspoint - pos
-        ! z = z%magnitude()
-
         dist = sqrt((lenspoint%x - pos%x)**2 + (lenspoint%y - pos%y)**2 + (lenspoint%z - pos%z)**2)
-        ! print*,dist
+
         nxp = (lenspoint%x - pos%x) / dist
         nyp = (lenspoint%y - pos%y) / dist
         nzp = (lenspoint%z - pos%z) / dist
+
         dir = vector(nxp, nyp, nzp)
         dir = dir%magnitude()
-        ! create new basis
-        ! x = z .cross. vector(1.,0.,0.)
-        ! x = x%magnitude()
-        ! y = z .cross. x
-        ! y = y%magnitude()
-
-        ! ! sample onto lens
-        ! u = [ran2(iseed), ran2(iseed)]
-        ! dir = UniformSampleCone(u, 0.8708510322, y, x, z)
-        ! dir = dir%magnitude()
 
     end subroutine ring
 
