@@ -118,7 +118,7 @@ module lensMod
         call reflect_refract(dir, this%flatNormal, this%n1, this%n2, iseed, flag)
 
         ! intersect curved side and move to it
-        flag = intersect(pos, dir, t, this%centre, this%curve_radius)
+        flag = intersect_sphere(pos, dir, t, this%centre, this%curve_radius)
         if(.not. flag)error stop "Help"
         pos = pos + t * dir
 
@@ -157,7 +157,7 @@ module lensMod
         ! end if
 
         !first sphere
-        flag = intersect(pos, dir, t, this%centre1, this%R1)
+        flag = intersect_sphere(pos, dir, t, this%centre1, this%R1)
         if(.not. flag)then
             skip=.true.
             return
@@ -179,7 +179,7 @@ module lensMod
 
 
         !second sphere
-        flag = intersect(pos, dir, t, this%centre2, this%R2)
+        flag = intersect_sphere(pos, dir, t, this%centre2, this%R2)
         if(.not. flag)then
             skip = .true.
             return
@@ -193,7 +193,7 @@ module lensMod
         call reflect_refract(dir, normal,this%n2, this%n3, iseed, flag)
 
         !third sphere
-        flag = intersect(pos, dir, t, this%centre3, this%R3)
+        flag = intersect_sphere(pos, dir, t, this%centre3, this%R3)
         if(.not. flag)error stop "Help3"
         pos = pos + t * dir
 
@@ -206,7 +206,7 @@ module lensMod
     end subroutine doublet_forward_sub
 
 
-    logical function intersect(orig, dir, t, centre, radius)
+    logical function intersect_sphere(orig, dir, t, centre, radius)
     ! calculates where a line, with origin:orig and direction:dir hits a sphere, centre:centre and radius:radius
     ! returns true if intersection exists
     ! returns t, the paramertised parameter of the line equation
@@ -223,7 +223,7 @@ module lensMod
         type(vector) :: L
         real         :: t0, t1, a, b, c, tmp
 
-        intersect = .false.
+        intersect_sphere = .false.
 
         L = orig - centre
         a = dir .dot. dir
@@ -242,10 +242,53 @@ module lensMod
         end if
 
         t = t0
-        intersect = .true.
+        intersect_sphere = .true.
         return
 
-    end function intersect
+    end function intersect_sphere
+
+    logical function intersect_cylinder(orig, dir, t, centre, radius)
+    ! calculates where a line, with origin:orig and direction:dir hits a cylinder, centre:centre and radius:radius
+    ! returns true if intersection exists
+    ! returns t, the paramertised parameter of the line equation
+    ! adapted from scratchapixel
+    ! need to check z height after moving ray
+    ! if not this is an infinte cylinder
+        
+        use vector_class, only : vector
+
+        implicit none
+
+        type(vector), intent(IN)  :: dir, orig, centre
+        real,         intent(OUT) :: t
+        real,         intent(IN)  :: radius
+
+        type(vector) :: L
+        real         :: t0, t1, a, b, c, tmp
+
+        intersect_cylinder = .false.
+
+        L = orig - centre
+        a = dir%x**2 + dir%y**2
+        b = 2 * (dir%x * L%x + dir%y * L%y)
+        c = L%x**2 + L%y**2 - radius**2
+
+        if(.not. solveQuadratic(a, b, c, t0, t1))return
+        if(t0 > t1)then
+            tmp = t1
+            t1 = t0
+            t0 = tmp
+        end if
+        if(t0 < 0.d0)then
+            t0 = t1
+            if(t0 < 0.)return
+        end if
+
+        t = t0
+        intersect_cylinder = .true.
+        return
+
+    end function intersect_cylinder
 
     logical function solveQuadratic(a, b, c, x0, x1)
     ! solves quadratic equation given coeffs a, b, and c
