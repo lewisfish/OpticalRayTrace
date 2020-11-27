@@ -14,12 +14,12 @@ Currently models a point source from centre of bottle, and a ring of point sourc
 
 To run one a single core/thread
 ```
-make && ./raytrace
+./install.sh -n 1
 ```
 
 To run on all available threads
 ```
-make mp && ./raytrace
+./install.sh
 ```
 
 ## Requirments
