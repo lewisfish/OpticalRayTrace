@@ -10,8 +10,7 @@ module lensMod
         real :: n1, n2
         type(vector) :: centre, flatNormal
         contains
-        procedure :: forward  => plano_forward_sub
-        ! procedure :: backward => backward_sub
+        procedure :: forward  => plano_forward_sub !flat face first
     end type plano_convex
 
     interface plano_convex
@@ -24,7 +23,7 @@ module lensMod
         real :: n1, n2, n3
         type(vector) :: centre1, centre2, centre3
         contains
-        procedure :: forward => doublet_forward_sub
+        procedure :: forward => doublet_forward_sub!r1 face first
     end type achromatic_doublet
 
     interface achromatic_doublet
@@ -34,14 +33,16 @@ module lensMod
 
     contains
 
-    type(achromatic_doublet) function init_achromatic_doublet(file, D1) result(this)
+    type(achromatic_doublet) function init_achromatic_doublet(file, wavelength, D1) result(this)
 
         implicit none
 
         character(*), intent(IN) :: file
-        real,         intent(IN) :: D1
+        real,         intent(IN) :: D1, wavelength
         
         integer :: u
+        real    :: b11, b21, b31, c11, c21, c31
+        real    :: b12, b22, b32, c12, c22, c32
 
         open(newunit=u,file=trim(file),status='old')
             read(u,*) this%thickness1
@@ -53,9 +54,22 @@ module lensMod
             read(u,*) this%f
             read(u,*) this%fb
             read(u,*) this%n1
-            read(u,*) this%n2
-            read(u,*) this%n3
+            read(u,*) b11
+            read(u,*) b21
+            read(u,*) b31
+            read(u,*) c11
+            read(u,*) c21
+            read(u,*) c31
+            read(u,*) b12
+            read(u,*) b22
+            read(u,*) b32
+            read(u,*) c12
+            read(u,*) c22
+            read(u,*) c32
         close(u)
+
+        this%n2 = Sellmeier(wavelength, b11, b21, b31, c11, c21, c31)
+        this%n3 = Sellmeier(wavelength, b12, b22, b32, c12, c22, c32)
 
         this%radius = this%diameter / 2.d0
         this%thickness = this%thickness1 + this%thickness2
@@ -67,13 +81,15 @@ module lensMod
     end function init_achromatic_doublet
 
 
-    type(plano_convex) function init_plano_convex(file) result(this)
+    type(plano_convex) function init_plano_convex(file, wavelength) result(this)
 
         implicit none
 
         character(*), intent(IN) :: file
+        real,         intent(IN) :: wavelength
 
         integer :: u
+        real    :: b1, b2, b3, c1, c2, c3
 
         open(newunit=u,file=trim(file),status='old')
             read(u,*) this%thickness
@@ -82,9 +98,15 @@ module lensMod
             read(u,*) this%f
             read(u,*) this%fb
             read(u,*) this%n1
-            read(u,*) this%n2
+            read(u,*) b1
+            read(u,*) b2
+            read(u,*) b3
+            read(u,*) c1
+            read(u,*) c2
+            read(u,*) c3
         close(u)
 
+        this%n2 = Sellmeier(wavelength, b1, b2, b3, c1, c2, c3)
         this%radius = this%diameter / 2.d0
 
         this%centre = vector(0., 0., (this%fb + this%thickness) - this%curve_radius)
@@ -92,8 +114,28 @@ module lensMod
 
     end function init_plano_convex
 
+    real function Sellmeier(wave, b1, b2, b3, c1, c2, c3)
+    ! Sellmeier equation
+    ! wave is in units of nm
 
-    subroutine plano_forward_sub(this, pos, dir, u, iseed)
+        implicit none
+
+        real, intent(IN) :: wave, b1, b2, b3, c1, c2, c3
+        real :: wave2, a, b ,c
+
+        !convert to units of um
+        wave2 = (wave*1d6)**2
+
+        a = (b1 * wave2) / (wave2 - c1)
+        b = (b2 * wave2) / (wave2 - c2)
+        c = (b3 * wave2) / (wave2 - c3)
+
+        Sellmeier = sqrt(1.d0 + (a + b + c))
+
+    end function Sellmeier
+
+
+    subroutine plano_forward_sub(this, pos, dir, u, iseed, skip)
 
         use stackMod, only : pointtype, stack
 
@@ -104,10 +146,14 @@ module lensMod
         type(vector), intent(INOUT) :: pos, dir
         integer,      intent(INOUT) :: iseed
         type(stack),  intent(INOUT) :: u
+        logical,      intent(OUT) :: skip
 
         type(vector) :: centre, flatNormal, curvedNormal
         real :: n1, n2, n3, d, t
         logical :: flag
+
+        skip = .false.
+
 
         ! move to flat surface
         d = (this%fb - pos%z) / dir%z
@@ -119,7 +165,12 @@ module lensMod
 
         ! intersect curved side and move to it
         flag = intersect_sphere(pos, dir, t, this%centre, this%curve_radius)
-        if(.not. flag)error stop "Help"
+        !ray exits lens through top
+        if(.not. flag)then
+            skip = .true.
+            return
+        end if
+
         pos = pos + t * dir
 
         !refract
