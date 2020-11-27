@@ -148,9 +148,9 @@ module lensMod
         type(stack),  intent(INOUT) :: u
         logical,      intent(OUT) :: skip
 
-        type(vector) :: centre, flatNormal, curvedNormal
-        real :: n1, n2, n3, d, t
-        logical :: flag
+        type(vector) :: curvedNormal
+        real         :: d, t
+        logical      :: flag
 
         skip = .false.
 
@@ -201,11 +201,19 @@ module lensMod
 
         skip = .false.
 
+        ! origpos = pos
+
+        ! d = ((this%centre1%z - this%r1) - pos%z) / dir%z
+        ! pos = pos + dir * d
+
+        ! ! make sure no rays get propagated that are outside lens radius
+        ! ! this can double as an Iris
         ! r = sqrt(pos%x**2 + pos%y**2)
-        ! if(r < this%radius*(8./10.).or. r > this%radius*(10./10.))then
+        ! if(r > this%radius*(1./1.))then
         !     skip=.true.
         !     return
         ! end if
+        ! pos = origpos
 
         !first sphere
         flag = intersect_sphere(pos, dir, t, this%centre1, this%R1)
@@ -227,6 +235,7 @@ module lensMod
 
         flag = .false.
         call reflect_refract(dir, normal, this%n1, this%n2, iseed, flag)
+        ! call u%push(pointtype(pos%x, pos%y, pos%z))
 
 
         !second sphere
@@ -242,6 +251,7 @@ module lensMod
 
         flag = .false.
         call reflect_refract(dir, normal,this%n2, this%n3, iseed, flag)
+        ! call u%push(pointtype(pos%x, pos%y, pos%z))
 
         !third sphere
         flag = intersect_sphere(pos, dir, t, this%centre3, this%R3)
@@ -253,6 +263,21 @@ module lensMod
 
         flag = .false.
         call reflect_refract(dir, normal, this%n3, this%n1, iseed, flag)
+        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+
+        ! origpos = pos
+
+        ! d = ((this%centre3%z + this%r3) - pos%z) / dir%z
+        ! pos = pos + dir * d
+
+        ! r = sqrt(pos%x**2 + pos%y**2)
+        ! if(r > this%radius*(1./1.))then
+        !     skip=.true.
+        !     return
+        ! end if
+        ! pos = origpos
+
+
 
     end subroutine doublet_forward_sub
 
@@ -391,7 +416,7 @@ module lensMod
         rflag = .FALSE.
         ! print*,fresnel(I, N, n1, n2)
         ! if(ran2(iseed) <= fresnel(I, N, n1, n2))then
-        !     ! call reflect(I, N)
+        !     call reflect(I, N)
         !     rflag = .true.
         ! else
             call refract(I, N, n1/n2)

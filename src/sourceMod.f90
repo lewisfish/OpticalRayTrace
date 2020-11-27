@@ -50,8 +50,8 @@ module source
         integer,      intent(INOUT) :: iseed
         real,         intent(IN)    :: r1, r2, cosThetaMax, bottleRadius, bottleOffset
 
-        type(vector) :: lenspoint, x, y, z
-        real         :: r, theta, u(2), posx, posy, posz, dist, nxp, nyp, nzp
+        type(vector) :: lenspoint
+        real         :: r, theta, posx, posy, posz, dist, nxp, nyp, nzp
 
         !sample on an annulus radii, r1, r2
         r = ranu(r1, r2, iseed)

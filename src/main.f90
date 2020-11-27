@@ -89,8 +89,8 @@ program raytrace
     pcount = 0_int64! counter for how many photons dont make from the point source
 
     wavelength = 849d-9
-    L2 = plano_convex("res/planoConvex.params", wavelength)
-    L3 = achromatic_doublet("res/achromaticDoublet.params", wavelength, L2%fb)
+    L2 = plano_convex("../res/planoConvex.params", wavelength)
+    L3 = achromatic_doublet("../res/achromaticDoublet.params", wavelength, L2%fb)
 
     !max angle for point source to lens
     angle = atan(L2%radius / L2%fb)
@@ -108,11 +108,12 @@ program raytrace
     distance = L2%fb - (bottleradius - bottleOffset)
     !https://en.wikipedia.org/wiki/Axicon#/media/File:Erzeugen_von_Besselstrahlen_durch_ein_Axicon.png
     besselDiameter = 2.* distance * tan(alpha*(n-1.))
+
     !annulus radii, squared as this is required for sampling
     r1 = besselDiameter/1.1d0 - ringWidth
     r2 = (besselDiameter / 2.d0)**2
     r1 = r1**2
-    ! open(newunit=u, file="tmp.dat", position="append")
+    ! open(newunit=u, file="test/ring-smallf-rays.dat", position="append")
 
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottleRadius, u, nphotons, cosThetaMax)&
@@ -120,8 +121,10 @@ program raytrace
 !$omp& private(iseed, d, pos, dir, skip, tracker), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
+
         skip=.false.
-        if(mod(i, 1000000) == 0)print*,i,"photons run from ring"
+        if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
+        
         call ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset, iseed)
         ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
 
@@ -131,6 +134,10 @@ program raytrace
         
         if(skip)then
             rcount = rcount + 1_int64
+            ! call tracker%zero()
+            ! write(u,*)" "
+            ! write(u,*)" "
+            ! write(u,*)" "
             cycle
         end if
 
@@ -139,28 +146,39 @@ program raytrace
         ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
 
         if(skip)then
-            count = count + 1
             rcount = rcount + 1_int64
+            ! call tracker%zero()
+            ! write(u,*)" "
+            ! write(u,*)" "
+            ! write(u,*)" "
             cycle
         end if
 
         !move to image plane
         d = (L2%f+L2%fb+2.*L3%f - pos%z) / dir%z
         pos = pos + dir * d
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
         call makeImage(image, pos, 1d-2, 1)
+        ! do while(.not. tracker%empty())
+        !     write(u,"(3(F10.7,1x))")tracker%pop()
+        ! end do
+        ! write(u,*)" "
+        ! write(u,*)" "
+        ! write(u,*)" "
     end do
 !$OMP end do
 
-    ! open(newunit=u, file="traj-annuli-4-point.dat", position="append")
 !$OMP single
     wavelength = 843d-9
-    L2 = plano_convex("res/planoConvex.params", wavelength)
-    L3 = achromatic_doublet("res/achromaticDoublet.params", wavelength, L2%fb)
+    L2 = plano_convex("../res/planoConvex.params", wavelength)
+    L3 = achromatic_doublet("../res/achromaticDoublet.params", wavelength, L2%fb)
 !$OMP end single
+
+    ! open(newunit=u, file="test/point-smallf-rays.dat", position="append")
 !$omp do
     do i=1, nphotons
         skip=.false.
-        if(mod(i, 1000000) == 0)print*,i,"photons run from point"
+        if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
         call point(pos, dir, cosThetaMax, iseed)
         ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
@@ -170,6 +188,10 @@ program raytrace
         
         if(skip)then
             pcount = pcount + 1_int64
+            ! call tracker%zero()
+            ! write(u,*)" "
+            ! write(u,*)" "
+            ! write(u,*)" "
             cycle
         end if
 
@@ -178,6 +200,10 @@ program raytrace
 
         if(skip)then
             pcount = pcount + 1_int64
+            ! call tracker%zero()
+            ! write(u,*)" "
+            ! write(u,*)" "
+            ! write(u,*)" "
             cycle
         end if
 
@@ -186,6 +212,12 @@ program raytrace
         pos = pos + dir * d
         ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
         call makeImage(image, pos, 1d-2, 2)
+        ! do while(.not. tracker%empty())
+        !     write(u,"(3(F10.7,1x))")tracker%pop()
+        ! end do
+        ! write(u,*)" "
+        ! write(u,*)" "
+        ! write(u,*)" "
     end do
 !$OMP end do
 !$omp end parallel
@@ -193,6 +225,6 @@ program raytrace
 print"(A,1X,f8.2,A)","Ring  transmitted: ",100.*(1.-(rcount/(real(nphotons)))),"%"
 print"(A,1X,f8.2,A)","Point transmitted: ",100.*(1.-(pcount/(real(nphotons)))),"%"
 
-call writeImage(image, "test-new-")
+call writeImage(image, "test/normalf-1-")
 
 end program raytrace
