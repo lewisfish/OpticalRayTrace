@@ -5,7 +5,6 @@ module lensMod
     implicit none
 
     type :: plano_convex
-
         real :: thickness, curve_radius, diameter, radius, fb, f
         real :: n1, n2
         type(vector) :: centre, flatNormal
@@ -135,6 +134,77 @@ module lensMod
     end function Sellmeier
 
 
+    subroutine glass_bottle(pos, dir, wave, bottleThickness, u, iseed, skip)
+
+        use stackMod, only : pointtype, stack
+
+        implicit none
+
+        type(vector), intent(INOUT) :: pos, dir
+        type(stack),  intent(INOUT) :: u
+        integer,      intent(INOUT) :: iseed
+        logical,      intent(OUT)   :: skip
+        real,         intent(IN)    :: wave, bottleThickness
+
+        type(vector) :: centre, normal, orig
+        real         :: t, radius, n, wave2
+        logical      :: flag
+
+        !centre of bottle
+        centre = vector(0., 0., 0.)
+
+        ! refractive index for clear container glass
+        !https://refractiveindex.info/?shelf=glass&book=soda-lime&page=Rubin-clear
+        ! wave2 = (wave*1d6 )**2
+        n = 1.5163231388184517!1.5130 - 0.003169*wave2 + 0.003962/wave2
+        !inner surface
+        radius = 17.5d-3 - bottleThickness
+        flag = intersect_cylinder(pos, dir, t, centre, radius)
+        if(.not. flag)then
+            skip = .true.
+            return
+        end if
+
+        orig = pos
+        pos = pos + t * dir
+        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+
+        orig%z = pos%z
+        normal = centre - orig
+        normal = normal%magnitude()
+        flag = .false.
+        call reflect_refract(dir, normal, 1.d0, n, iseed, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+        !outer surface
+        radius = 17.5d-3
+        flag = intersect_cylinder(pos, dir, t, centre, radius)
+        if(.not. flag)then
+            skip = .true.
+            return
+        end if
+
+        orig = pos
+        pos = pos + t * dir
+        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+
+        orig%z = pos%z
+        normal = centre - orig
+
+        normal = normal%magnitude()
+
+        flag = .false.
+        call reflect_refract(dir, normal, n, 1.d0, iseed, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+    end subroutine glass_bottle
+
     subroutine plano_forward_sub(this, pos, dir, u, iseed, skip)
 
         use stackMod, only : pointtype, stack
@@ -149,7 +219,7 @@ module lensMod
         logical,      intent(OUT) :: skip
 
         type(vector) :: curvedNormal
-        real         :: d, t
+        real         :: d, t, r
         logical      :: flag
 
         skip = .false.
@@ -158,6 +228,12 @@ module lensMod
         ! move to flat surface
         d = (this%fb - pos%z) / dir%z
         pos = pos + dir * d
+        r = sqrt(pos%x**2 + pos%y**2)
+        if(r > this%radius)then
+            skip=.true.
+            return
+        end if
+
         ! call u%push(pointtype(pos%x, pos%y, pos%z))
 
         flag = .false.
@@ -178,6 +254,12 @@ module lensMod
         curvedNormal = curvedNormal%magnitude()
         flag = .false.
         call reflect_refract(dir, curvedNormal, this%n2, this%n1, iseed, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+
     end subroutine plano_forward_sub
 
 
@@ -235,6 +317,12 @@ module lensMod
 
         flag = .false.
         call reflect_refract(dir, normal, this%n1, this%n2, iseed, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+
         ! call u%push(pointtype(pos%x, pos%y, pos%z))
 
 
@@ -251,6 +339,12 @@ module lensMod
 
         flag = .false.
         call reflect_refract(dir, normal,this%n2, this%n3, iseed, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+
         ! call u%push(pointtype(pos%x, pos%y, pos%z))
 
         !third sphere
@@ -263,6 +357,12 @@ module lensMod
 
         flag = .false.
         call reflect_refract(dir, normal, this%n3, this%n1, iseed, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+
         ! call u%push(pointtype(pos%x, pos%y, pos%z))
 
         ! origpos = pos
@@ -330,6 +430,7 @@ module lensMod
     ! adapted from scratchapixel
     ! need to check z height after moving ray
     ! if not this is an infinte cylinder
+    ! cylinder lies length ways along z-axis
         
         use vector_class, only : vector
 
@@ -345,9 +446,9 @@ module lensMod
         intersect_cylinder = .false.
 
         L = orig - centre
-        a = dir%x**2 + dir%y**2
-        b = 2 * (dir%x * L%x + dir%y * L%y)
-        c = L%x**2 + L%y**2 - radius**2
+        a = dir%z**2 + dir%y**2
+        b = 2 * (dir%z * L%z + dir%y * L%y)
+        c = L%z**2 + L%y**2 - radius**2
 
         if(.not. solveQuadratic(a, b, c, t0, t1))return
         if(t0 > t1)then
@@ -415,12 +516,12 @@ module lensMod
 
         rflag = .FALSE.
         ! print*,fresnel(I, N, n1, n2)
-        ! if(ran2(iseed) <= fresnel(I, N, n1, n2))then
-        !     call reflect(I, N)
-        !     rflag = .true.
-        ! else
+        if(ran2(iseed) <= fresnel(I, N, n1, n2))then
+            ! call reflect(I, N)
+            rflag = .true.
+        else
             call refract(I, N, n1/n2)
-        ! end if
+        end if
 
     end subroutine reflect_refract
 
@@ -487,7 +588,7 @@ module lensMod
         real, intent(IN)         :: n1, n2
         type(vector), intent(IN) :: I, N
 
-        real             ::  costt, sintt, sint2, cost2, tir, f1, f2
+        real ::  costt, sintt, sint2, cost2, tir, f1, f2
 
         costt = abs(I .dot. N)
 
@@ -506,7 +607,10 @@ module lensMod
             f2 = abs((n1*cost2 - n2*costt) / (n1*cost2 + n2*costt))**2
 
             tir = 0.5 * (f1 + f2)
-        if(ieee_is_nan(tir) .or. tir > 1. .or. tir < 0.)print*,'TIR: ', tir, f1, f2, costt,sintt,cost2,sint2
+            if(ieee_is_nan(tir) .or. tir > 1. .or. tir < 0.)then
+                ! print*,'TIR: ', tir, f1, f2, costt,sintt,cost2,sint2
+                tir = 1.
+            end if
             return
         end if
     end function fresnel
