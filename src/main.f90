@@ -60,7 +60,7 @@ end module imageMod
 program raytrace
 
     use constants,    only : pi
-    use lensMod,      only : plano_convex, achromatic_doublet
+    use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
     use source,       only : ring, point
     use stackMod,     only : pointtype, stack
     use utils,        only : str
@@ -181,6 +181,9 @@ program raytrace
         if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
         call point(pos, dir, cosThetaMax, iseed)
+        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+
+        call glass_bottle(pos, dir, wavelength, 2.5d-3, tracker, iseed, skip)
         ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
 
         call L2%forward(pos, dir, tracker, iseed, skip)
