@@ -8,8 +8,8 @@ PROGRAM =  raytrace
 
 SRCS =      constants.f90 \
 			utils.f90 \
-			stackMod.f90 \
 			vector_class.f90 \
+			stackMod.f90 \
 			random_mod.f90 \
 			sourceMod.f90 \
 			lens.f90 \

@@ -136,7 +136,7 @@ module lensMod
 
     subroutine glass_bottle(pos, dir, wave, bottleThickness, u, iseed, skip)
 
-        use stackMod, only : pointtype, stack
+        use stackMod, only : stack
 
         implicit none
 
@@ -167,7 +167,7 @@ module lensMod
 
         orig = pos
         pos = pos + t * dir
-        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+        ! call u%push(vector(pos%x, pos%y, pos%z))
 
         orig%z = pos%z
         normal = centre - orig
@@ -189,7 +189,7 @@ module lensMod
 
         orig = pos
         pos = pos + t * dir
-        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+        ! call u%push(vector(pos%x, pos%y, pos%z))
 
         orig%z = pos%z
         normal = centre - orig
@@ -207,7 +207,7 @@ module lensMod
 
     subroutine plano_forward_sub(this, pos, dir, u, iseed, skip)
 
-        use stackMod, only : pointtype, stack
+        use stackMod, only : stack
 
         implicit none
 
@@ -234,7 +234,7 @@ module lensMod
             return
         end if
 
-        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+        ! call u%push(vector(pos%x, pos%y, pos%z))
 
         flag = .false.
         call reflect_refract(dir, this%flatNormal, this%n1, this%n2, iseed, flag)
@@ -323,7 +323,7 @@ module lensMod
         end if
 
 
-        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+        ! call u%push(vector(pos%x, pos%y, pos%z))
 
 
         !second sphere
@@ -345,7 +345,7 @@ module lensMod
         end if
 
 
-        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+        ! call u%push(vector(pos%x, pos%y, pos%z))
 
         !third sphere
         flag = intersect_sphere(pos, dir, t, this%centre3, this%R3)
@@ -363,7 +363,7 @@ module lensMod
         end if
 
 
-        ! call u%push(pointtype(pos%x, pos%y, pos%z))
+        ! call u%push(vector(pos%x, pos%y, pos%z))
 
         ! origpos = pos
 

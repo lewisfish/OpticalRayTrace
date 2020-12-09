@@ -1,12 +1,11 @@
 module stackMod
+
+    use vector_class, only : vector
+
     implicit none
     
-    type :: pointtype
-        real :: x, y, z
-    end type pointtype
-    
     type :: stack
-        type(pointtype), allocatable :: data(:) ! stack
+        type(vector), allocatable :: data(:) ! stack
         integer                  :: size = 0
         contains
             procedure :: pop   => pop_fn
@@ -27,7 +26,7 @@ module stackMod
         
         class(stack) :: this
 
-        type(pointtype) :: tmp
+        type(vector) :: tmp
 
         do while(.not. this%empty())
             tmp = this%pop()
@@ -35,7 +34,7 @@ module stackMod
 
     end subroutine zero_sub
 
-    type(pointtype) function pop_fn(this)
+    type(vector) function pop_fn(this)
     ! pop top enrty off stack
         implicit none
 
@@ -43,7 +42,7 @@ module stackMod
 
         if(this%size == 0 .or. .not. allocated(this%data))then
             !if nothing in stack send back garbage data
-            pop_fn = pointtype(-999d0, -999.d0, -999.d0)
+            pop_fn = vector(-999d0, -999.d0, -999.d0)
             return
         end if
         pop_fn = this%data(this%size)
@@ -52,14 +51,14 @@ module stackMod
     end function pop_fn
 
 
-    type(pointtype) function peek_fn(this)
+    type(vector) function peek_fn(this)
 
         implicit none
 
         class(stack) :: this
 
         if(this%size == 0 .or. .not. allocated(this%data))then
-            peek_fn = pointtype(-999d0, -999.d0, -999.d0)
+            peek_fn = vector(-999d0, -999.d0, -999.d0)
             return
         end if
         peek_fn = this%data(this%size)
@@ -82,8 +81,8 @@ module stackMod
 
         class(stack) :: this
 
-        type(pointtype), intent(IN)  :: pt
-        type(pointtype), allocatable :: tmp(:)
+        type(vector), intent(IN)  :: pt
+        type(vector), allocatable :: tmp(:)
 
         if(.not. allocated(this%data))then
             ! Allocate space if not yet done

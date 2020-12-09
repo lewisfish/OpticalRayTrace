@@ -62,7 +62,7 @@ program raytrace
     use constants,    only : pi
     use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
     use source,       only : ring, point
-    use stackMod,     only : pointtype, stack
+    use stackMod,     only : stack
     use utils,        only : str
     use vector_class, only : vector
     use imageMod
@@ -126,11 +126,11 @@ program raytrace
         if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
         
         call ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset, iseed)
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         !propagate though lens 2
         call L2%forward(pos, dir, tracker, iseed, skip)
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
         
         if(skip)then
             rcount = rcount + 1_int64
@@ -143,7 +143,7 @@ program raytrace
 
         !propagate through lens 3
         call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, iseed, skip)
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         if(skip)then
             rcount = rcount + 1_int64
@@ -157,7 +157,7 @@ program raytrace
         !move to image plane
         d = (L2%f+L2%fb+2.*L3%f - pos%z) / dir%z
         pos = pos + dir * d
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
         call makeImage(image, pos, 1d-2, 1)
         ! do while(.not. tracker%empty())
         !     write(u,"(3(F10.7,1x))")tracker%pop()
@@ -181,13 +181,13 @@ program raytrace
         if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
         call point(pos, dir, cosThetaMax, iseed)
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         call glass_bottle(pos, dir, wavelength, 2.5d-3, tracker, iseed, skip)
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         call L2%forward(pos, dir, tracker, iseed, skip)
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
         
         if(skip)then
             pcount = pcount + 1_int64
@@ -199,7 +199,7 @@ program raytrace
         end if
 
         call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, iseed, skip)
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         if(skip)then
             pcount = pcount + 1_int64
@@ -213,7 +213,7 @@ program raytrace
         !move to image plane
         d = (L2%f+L2%fb+2.*L3%f - pos%z) / dir%z
         pos = pos + dir * d
-        ! call tracker%push(pointtype(pos%x, pos%y, pos%z))
+        ! call tracker%push(vector(pos%x, pos%y, pos%z))
         call makeImage(image, pos, 1d-2, 2)
         ! do while(.not. tracker%empty())
         !     write(u,"(3(F10.7,1x))")tracker%pop()
