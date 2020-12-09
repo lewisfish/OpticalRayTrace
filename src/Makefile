@@ -12,6 +12,7 @@ SRCS =      constants.f90 \
 			stackMod.f90 \
 			random_mod.f90 \
 			sourceMod.f90 \
+			surfaces.f90 \
 			lens.f90 \
 			main.f90 
 			
