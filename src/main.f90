@@ -61,29 +61,64 @@ program raytrace
 
     use constants,    only : pi
     use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
-    use source,       only : ring, point
+    use source,       only : ring, point, emit_image
     use stackMod,     only : stack
     use utils,        only : str
     use vector_class, only : vector
     use imageMod
     use OMP_LIB
+    use random, only : ran2
     use iso_fortran_env, only: int64
 
     implicit none
     
+
     type(vector) :: pos, dir
     type(stack)  :: tracker
-    type(plano_convex) :: L2
+    
+    !lens and bottles
+    type(plano_convex)       :: L2
     type(achromatic_doublet) :: L3
-    type(glass_bottle) :: bottle
-    integer :: image(-200:200, -200:200, 2)
-    integer :: nphotons, i, u
-    integer(int64) :: rcount, pcount
-    real    :: d, angle, cosThetaMax, r1, r2, wavelength
-    real    :: n, alpha, besselDiameter, distance, ringwidth, bottleRadius, bottleOffset
-    logical :: skip
+    type(glass_bottle)       :: bottle
 
-    nphotons = 200000000
+    integer        :: image(-200:200, -200:200, 2), nphotons, i, u, j
+    integer(int64) :: rcount, pcount
+    real           :: d, angle, cosThetaMax, r1, r2, wavelength, tmp, diff
+    real           :: n, alpha, besselDiameter, distance, ringwidth, tot
+    logical        :: skip
+    double precision :: imgout(101, 101)
+    integer :: imgin(101,101)
+
+    ! imgout = 0.
+    ! do i = 1, 200
+    !     do j = 1,200
+    !         if(i == j)imgout(i,j)=i * j
+    !     end do        
+    ! end do
+
+    open(newunit=u,file="../src/bessel-img.dat", form="unformatted", access="stream", status="old")
+    read(u)imgout
+    close(u)
+    !normalise
+    tot = sum(imgout)
+    imgin = 0
+    nphotons = 100000000
+    do i = 1, 101
+        do j = 1, 101
+            tmp = (dble(nphotons) * imgout(i, j)) / dble(tot)
+
+            diff = tmp - int(tmp)
+            if(ran2() < diff .and. diff > 0)then
+                imgin(i,j) = imgin(i, j) + (int(tmp) + 1)
+            else
+                imgin(i,j) = imgin(i, j) + int(tmp)
+            end if
+            ! print*,imgin(i,j)
+        end do
+    end do
+
+
+
     image = 0
     rcount = 0_int64! counter for how many photons dont make from the ring source
     pcount = 0_int64! counter for how many photons dont make from the point source
@@ -101,8 +136,6 @@ program raytrace
     ringWidth = 0.5d-3 ! half beam size incident on axicon -> guess is 1mm in diameter
     alpha = 5.d0 * pi / 180.
     n = 1.45d0
-    bottleRadius = 17.5d-3!35.0d-3!large!17.5d-3! small
-    bottleOffset = 0.!l2%fb - (bottleRadius+0.01d-3)!17.4d-3!8.75d-3!17.4d-3!0.*3.5d-3!bottleradius / 2.d0
 
     if(l2%fb <= bottle%radius + bottle%centre%z)error stop "Bottle offset too large!"
     ! distance to surface of bottle
@@ -117,16 +150,15 @@ program raytrace
     ! open(newunit=u, file="test/ring-smallf-rays.dat", position="append")
 
 !$OMP parallel default(none)&
-!$OMP& shared(L2, L3, bottle, u, nphotons, cosThetaMax)&
-!$OMP& shared(r1, r2, image, wavelength),&
+!$OMP& shared(L2, L3, bottle, u, nphotons, cosThetaMax, r1, r2, image, wavelength, imgin)&
 !$omp& private(d, pos, dir, skip, tracker), reduction(+:rcount, pcount)
 !$OMP do
-    do i = 1, nphotons
+    do i = 1, 1
 
         skip=.false.
         if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
         
-        call ring(pos, dir, r1, r2, cosThetaMax, bottle%Radius, bottle%centre%z)
+        call ring(pos, dir, r1, r2, bottle%Radius, bottle%centre%z)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         !propagate though lens 2
@@ -143,7 +175,7 @@ program raytrace
         end if
 
         !propagate through lens 3
-        call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, skip)
+        call L3%forward(pos, dir, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         if(skip)then
@@ -181,10 +213,11 @@ program raytrace
         skip=.false.
         if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
-        call point(pos, dir, cosThetaMax)
+        call emit_image(imgin, pos, dir)
+        ! call point(pos, dir, cosThetaMax)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
-        call bottle%forward(pos, dir, tracker, skip)
+        ! call bottle%forward(pos, dir, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         call L2%forward(pos, dir, tracker, skip)
@@ -199,7 +232,7 @@ program raytrace
             cycle
         end if
 
-        call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, skip)
+        call L3%forward(pos, dir, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         if(skip)then

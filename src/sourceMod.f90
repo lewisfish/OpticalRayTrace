@@ -39,14 +39,14 @@ module source
     end subroutine point
 
 
-    subroutine ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset)
+    subroutine ring(pos, dir, r1, r2, bottleRadius, bottleOffset)
 
         use vector_class
 
         implicit none
 
         type(vector), intent(OUT)   :: pos, dir
-        real,         intent(IN)    :: r1, r2, cosThetaMax, bottleRadius, bottleOffset
+        real,         intent(IN)    :: r1, r2, bottleRadius, bottleOffset
 
         type(vector) :: lenspoint
         real         :: r, theta, posx, posy, posz, dist, nxp, nyp, nzp
@@ -83,39 +83,63 @@ module source
 
     end subroutine ring
 
-    type(vector) function UniformSampleCone(u, cosThetaMax, x, y, z)
-    ! sample around a vector, e.g a in a cone
-    ! takes three basis vectors for the coordinate system to be used where
-    ! samples taken are with respect to the z axis of the given coordinate system.
-    ! taken from PBRT
-        use vector_class
+
+    subroutine emit_image(img, pos, dir)
 
         implicit none
 
-        type(vector), intent(IN) :: x, y, z
-        real,         intent(IN) :: u(2), cosThetaMax
+        type(vector), intent(OUT)   :: pos, dir
+        integer,      intent(INOUT) :: img(:, :)
 
-        real :: sinTheta, cosTheta, phi
+        integer :: i, j
 
-        cosTheta = lerp(u(1), cosThetaMax, 1.)
-        sinTheta = sqrt(1. - cosTheta**2)
-        phi = u(2) * twopi
+        do i = 1, size(img, 2)
+            do j = 1, size(img, 1)
+                if(img(j, i) > 0)then
+                    call emit(pos, dir, j, i)
+!$OMP atomic
+                    img(j , i) = img(j, i) - 1
+                    return
+                end if
+            end do
+        end do
 
-        UniformSampleCone = cos(phi) * sinTheta * x + sin(phi) * sinTheta * y + cosTheta * z 
+    end subroutine emit_image
 
-    end function UniformSampleCone
-
-
-    real function Lerp(t, v1, v2)
-    ! linear interpolate
-    ! taken from PBRT
-
+    subroutine emit(pos, dir, i, j)
+        
         implicit none
 
-        real, intent(IN) :: t, v1, v2
+        type(vector), intent(OUT) :: pos, dir 
+        integer,      intent(IN)  :: i, j
 
-        Lerp = (1. - t) * v1 + t * v2
+        real :: x, y, z, dist, r, theta, posx, posy, nxp, nyp, nzp
+        real :: dx, dy
+        type(vector) :: lenspoint
 
-    end function Lerp
+        dx = 2d-2 / 101.
+        dy = dx
 
+        x = ranu((i-1.) * dx, i * dx) - 1d-2
+        y = ranu((j-1.) * dx, j * dx) - 1d-2
+        z = 0.d0
+        pos = vector(x, y, z)
+
+
+        r = ranu(0., 12.7d-3**2)!
+        theta = ran2() * twopi
+        posx = sqrt(r) * cos(theta)
+        posy = sqrt(r) * sin(theta)
+        lenspoint = vector(posx, posy, 37.5d-3)
+
+        dist = sqrt((lenspoint%x - pos%x)**2 + (lenspoint%y - pos%y)**2 + (lenspoint%z - pos%z)**2)
+
+        nxp = (lenspoint%x - pos%x) / dist
+        nyp = (lenspoint%y - pos%y) / dist
+        nzp = (lenspoint%z - pos%z) / dist
+
+        dir = vector(nxp, nyp, nzp)
+        dir = dir%magnitude()
+
+    end subroutine emit
 end module source

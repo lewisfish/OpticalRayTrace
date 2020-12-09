@@ -327,7 +327,7 @@ module lensMod
 
 
 
-    subroutine doublet_forward_sub(this, pos, dir, D1, D2, u, skip)
+    subroutine doublet_forward_sub(this, pos, dir, u, skip)
 
         use stackMod, only : stack
 
@@ -335,14 +335,13 @@ module lensMod
 
         class(achromatic_doublet) :: this
 
-        real,         intent(IN)    :: D1, D2
         type(vector), intent(INOUT) :: pos, dir
         type(stack),  intent(INOUT) :: u
         logical,      intent(OUT)   :: skip
 
-        type(vector) :: normal, origpos
+        type(vector) :: normal
         logical      :: flag
-        real         :: t, d, r
+        real         :: t, r
 
         skip = .false.
 
