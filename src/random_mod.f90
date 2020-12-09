@@ -7,44 +7,41 @@ module random
 
     contains
 
-
-        real function ran2(seed)
+        real function ran2()
+        !wrapper for call random number
 
             implicit none
-
-            integer, intent(INOUT) :: seed
 
             call random_number(ran2)
 
         end function ran2
 
-
-        real function ranu(a, b, iseed)
+        real function ranu(a, b)
+        !uniformly sample in range[a, b)
 
             implicit none
 
             real,    intent(IN)    :: a, b
-            integer, intent(INOUT) :: iseed
 
-            ranu = a + ran2(iseed) * (b - a)
+            ranu = a + ran2() * (b - a)
 
         end function ranu
 
-        subroutine rang(x, y, avg, sigma, iseed)
+        subroutine rang(x, y, avg, sigma)
+        ! sample a 2D Guassian distribution
 
             implicit none
 
-            real,    intent(IN) :: avg, sigma
-            integer, intent(INOUT) :: iseed
-            real, intent(OUT):: x,y
+            real,    intent(IN)    :: avg, sigma
+            real,    intent(OUT)   :: x,y
             
             real :: s, tmp
 
             s = 1.
 
             do while(s >= 1.)
-                x = ranu(-1., 1., iseed)
-                y = ranu(-1., 1., iseed)
+                x = ranu(-1., 1.)
+                y = ranu(-1., 1.)
                 s = y**2 + x**2
             end do
 
@@ -55,5 +52,4 @@ module random
             y = avg + sigma*tmp
 
         end subroutine rang
-
 end module random

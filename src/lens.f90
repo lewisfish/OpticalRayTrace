@@ -31,6 +31,18 @@ module lensMod
     end interface achromatic_doublet
 
 
+    type :: glass_bottle
+        real         :: nbottle, ncontents, thickness, radius
+        type(vector) :: centre
+        contains
+        procedure :: forward => bottle_forward_sub
+    end type glass_bottle
+
+    interface glass_bottle
+        module procedure init_bottle
+    end interface glass_bottle
+
+
     contains
 
     type(achromatic_doublet) function init_achromatic_doublet(file, wavelength, D1) result(this)
@@ -114,53 +126,56 @@ module lensMod
 
     end function init_plano_convex
 
-    real function Sellmeier(wave, b1, b2, b3, c1, c2, c3)
-    ! Sellmeier equation
-    ! wave is in units of nm
+
+    type(glass_bottle) function init_bottle(file, wavelength) result(this)
 
         implicit none
+    
+        real,         intent(IN) :: wavelength
+        character(*), intent(IN) :: file
 
-        real, intent(IN) :: wave, b1, b2, b3, c1, c2, c3
-        real :: wave2, a, b ,c
+        integer :: u
+        real    :: x, y, z, a1, b1, c1, a2, b2, c2
 
-        !convert to units of um
-        wave2 = (wave*1d6)**2
+        open(newunit=u, file=file, status="old")
+            read(u,*)this%thickness
+            read(u,*)this%radius
+            read(u,*)x
+            read(u,*)y
+            read(u,*)z
+            read(u,*)a1
+            read(u,*)b1
+            read(u,*)c1
+            read(u,*)a2
+            read(u,*)b2
+            read(u,*)c2
+        close(u)
 
-        a = (b1 * wave2) / (wave2 - c1)
-        b = (b2 * wave2) / (wave2 - c2)
-        c = (b3 * wave2) / (wave2 - c3)
+        this%centre = vector(x, y, z)
+        this%nbottle = dispersion(wavelength, a1, b1, c1)
+        this%ncontents = cauchy(wavelength, a2, b2, c2)
 
-        Sellmeier = sqrt(1.d0 + (a + b + c))
-
-    end function Sellmeier
+    end function init_bottle
 
 
-    subroutine glass_bottle(pos, dir, wave, bottleThickness, u, iseed, skip)
+    subroutine bottle_forward_sub(this, pos, dir, u, skip)
 
         use stackMod, only : stack
 
         implicit none
 
+        class(glass_bottle) :: this
         type(vector), intent(INOUT) :: pos, dir
         type(stack),  intent(INOUT) :: u
-        integer,      intent(INOUT) :: iseed
         logical,      intent(OUT)   :: skip
-        real,         intent(IN)    :: wave, bottleThickness
 
-        type(vector) :: centre, normal, orig
-        real         :: t, radius, n, wave2
+        type(vector) :: normal, orig
+        real         :: t
         logical      :: flag
 
-        !centre of bottle
-        centre = vector(0., 0., 0.)
 
-        ! refractive index for clear container glass
-        !https://refractiveindex.info/?shelf=glass&book=soda-lime&page=Rubin-clear
-        ! wave2 = (wave*1d6 )**2
-        n = 1.5163231388184517!1.5130 - 0.003169*wave2 + 0.003962/wave2
         !inner surface
-        radius = 17.5d-3 - bottleThickness
-        flag = intersect_cylinder(pos, dir, t, centre, radius)
+        flag = intersect_cylinder(pos, dir, t, this%centre, this%radius - this%thickness)
         if(.not. flag)then
             skip = .true.
             return
@@ -171,18 +186,17 @@ module lensMod
         ! call u%push(vector(pos%x, pos%y, pos%z))
 
         orig%z = pos%z
-        normal = centre - orig
+        normal = this%centre - orig
         normal = normal%magnitude()
         flag = .false.
-        call reflect_refract(dir, normal, 1.d0, n, iseed, flag)
+        call reflect_refract(dir, normal, this%ncontents, this%nbottle, flag)
         if(flag)then
             skip = .true.
             return
         end if
 
         !outer surface
-        radius = 17.5d-3
-        flag = intersect_cylinder(pos, dir, t, centre, radius)
+        flag = intersect_cylinder(pos, dir, t, this%centre, this%radius)
         if(.not. flag)then
             skip = .true.
             return
@@ -193,20 +207,20 @@ module lensMod
         ! call u%push(vector(pos%x, pos%y, pos%z))
 
         orig%z = pos%z
-        normal = centre - orig
+        normal = this%centre - orig
 
         normal = normal%magnitude()
 
         flag = .false.
-        call reflect_refract(dir, normal, n, 1.d0, iseed, flag)
+        call reflect_refract(dir, normal, this%nbottle, 1.d0, flag)
         if(flag)then
             skip = .true.
             return
         end if
 
-    end subroutine glass_bottle
+    end subroutine bottle_forward_sub
 
-    subroutine plano_forward_sub(this, pos, dir, u, iseed, skip)
+    subroutine plano_forward_sub(this, pos, dir, u, skip)
 
         use stackMod, only : stack
 
@@ -215,7 +229,6 @@ module lensMod
         class(plano_convex) :: this
 
         type(vector), intent(INOUT) :: pos, dir
-        integer,      intent(INOUT) :: iseed
         type(stack),  intent(INOUT) :: u
         logical,      intent(OUT) :: skip
 
@@ -238,7 +251,7 @@ module lensMod
         ! call u%push(vector(pos%x, pos%y, pos%z))
 
         flag = .false.
-        call reflect_refract(dir, this%flatNormal, this%n1, this%n2, iseed, flag)
+        call reflect_refract(dir, this%flatNormal, this%n1, this%n2, flag)
 
         ! intersect curved side and move to it
         flag = intersect_sphere(pos, dir, t, this%centre, this%curve_radius)
@@ -254,19 +267,69 @@ module lensMod
         curvedNormal = this%centre - pos
         curvedNormal = curvedNormal%magnitude()
         flag = .false.
-        call reflect_refract(dir, curvedNormal, this%n2, this%n1, iseed, flag)
+        call reflect_refract(dir, curvedNormal, this%n2, this%n1, flag)
         if(flag)then
             skip = .true.
             return
         end if
 
-
     end subroutine plano_forward_sub
 
 
-    subroutine doublet_forward_sub(this, pos, dir, D1, D2, u, iseed, skip)
 
-        use stackMod, only : pointtype, stack
+
+    subroutine plano_backward_sub(this, pos, dir, u, skip)
+
+        use stackMod, only : stack
+
+        implicit none
+
+        class(plano_convex) :: this
+
+        type(vector), intent(INOUT) :: pos, dir
+        type(stack),  intent(INOUT) :: u
+        logical,      intent(OUT) :: skip
+
+        type(vector) :: curvedNormal
+        real         :: d, t, r
+        logical      :: flag
+
+        skip = .false.
+
+        flag = intersect_sphere(pos, dir, t, this%centre, this%curve_radius)
+        if(.not. flag)then
+            skip = .true.
+            return
+        end if
+
+        pos = pos + t * dir
+
+        flag = .false.
+        curvedNormal = pos - this%centre
+        curvedNormal = curvedNormal%magnitude()
+        call reflect_refract(dir, curvedNormal, this%n1, this%n2, flag)
+
+        ! move to flat surface
+        d = (this%thickness) / dir%z
+        pos = pos + dir * d
+        r = sqrt(pos%x**2 + pos%y**2)
+        if(r > this%radius)then
+            skip=.true.
+            return
+        end if
+
+        ! call u%push(vector(pos%x, pos%y, pos%z))
+
+        flag = .false.
+        call reflect_refract(dir, this%flatNormal, this%n1, this%n2, flag)
+
+    end subroutine plano_backward_sub
+
+
+
+    subroutine doublet_forward_sub(this, pos, dir, D1, D2, u, skip)
+
+        use stackMod, only : stack
 
         implicit none
 
@@ -274,7 +337,6 @@ module lensMod
 
         real,         intent(IN)    :: D1, D2
         type(vector), intent(INOUT) :: pos, dir
-        integer,      intent(INOUT) :: iseed
         type(stack),  intent(INOUT) :: u
         logical,      intent(OUT)   :: skip
 
@@ -317,7 +379,7 @@ module lensMod
         normal = normal%magnitude()
 
         flag = .false.
-        call reflect_refract(dir, normal, this%n1, this%n2, iseed, flag)
+        call reflect_refract(dir, normal, this%n1, this%n2, flag)
         if(flag)then
             skip = .true.
             return
@@ -339,7 +401,7 @@ module lensMod
         normal = normal%magnitude()
 
         flag = .false.
-        call reflect_refract(dir, normal,this%n2, this%n3, iseed, flag)
+        call reflect_refract(dir, normal,this%n2, this%n3, flag)
         if(flag)then
             skip = .true.
             return
@@ -357,7 +419,7 @@ module lensMod
         normal = normal%magnitude()
 
         flag = .false.
-        call reflect_refract(dir, normal, this%n3, this%n1, iseed, flag)
+        call reflect_refract(dir, normal, this%n3, this%n1, flag)
         if(flag)then
             skip = .true.
             return
@@ -377,8 +439,52 @@ module lensMod
         !     return
         ! end if
         ! pos = origpos
-
-
-
     end subroutine doublet_forward_sub
+
+    real function Sellmeier(wave, b1, b2, b3, c1, c2, c3)
+    ! Sellmeier equation
+    ! wave is in units of nm
+
+        implicit none
+
+        real, intent(IN) :: wave, b1, b2, b3, c1, c2, c3
+        real :: wave2, a, b ,c
+
+        !convert to units of um
+        wave2 = (wave*1d6)**2
+
+        a = (b1 * wave2) / (wave2 - c1)
+        b = (b2 * wave2) / (wave2 - c2)
+        c = (b3 * wave2) / (wave2 - c3)
+
+        Sellmeier = sqrt(1.d0 + (a + b + c))
+
+    end function Sellmeier
+
+    real function cauchy(wave, a, b, c)
+    !Cauchy equation for refractive index of alcohol
+    !wave is in nm
+
+        implicit none
+
+        real, intent(IN) :: wave, a, b, c
+
+        cauchy = a + b *wave**(-2) + c*wave**(-4)
+
+    end function cauchy
+
+    real function dispersion(wave, a, b, c)
+    !dispersion equation for soda-lime glass
+    !wave is in nm
+        implicit none
+
+        real, intent(IN) :: wave, a, b, c
+
+        real :: wave2
+        !convert to um and square
+        wave2 = (wave*1d6)**2
+
+        dispersion = a - b*wave2 + (c / wave2)
+
+    end function dispersion
 end module lensMod

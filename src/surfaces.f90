@@ -126,7 +126,7 @@ module surfaces
 
     end function solveQuadratic
 
-    subroutine reflect_refract(I, N, n1, n2, iseed, rflag)
+    subroutine reflect_refract(I, N, n1, n2, rflag)
 
         use random, only : ran2
 
@@ -135,12 +135,11 @@ module surfaces
         type(vector), intent(INOUT) :: I
         type(vector), intent(INOUT) :: N
         real,         intent(IN)    :: n1, n2
-        integer,      intent(INOUT) :: iseed
         logical,      intent(OUT)   :: rflag
 
         rflag = .FALSE.
         ! print*,fresnel(I, N, n1, n2)
-        if(ran2(iseed) <= fresnel(I, N, n1, n2))then
+        if(ran2() <= fresnel(I, N, n1, n2))then
             ! call reflect(I, N)
             rflag = .true.
         else

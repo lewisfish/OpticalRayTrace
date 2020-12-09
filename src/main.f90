@@ -75,20 +75,21 @@ program raytrace
     type(stack)  :: tracker
     type(plano_convex) :: L2
     type(achromatic_doublet) :: L3
+    type(glass_bottle) :: bottle
     integer :: image(-200:200, -200:200, 2)
-    integer :: nphotons, i, iseed, u
+    integer :: nphotons, i, u
     integer(int64) :: rcount, pcount
     real    :: d, angle, cosThetaMax, r1, r2, wavelength
     real    :: n, alpha, besselDiameter, distance, ringwidth, bottleRadius, bottleOffset
     logical :: skip
 
-    iseed = 42
     nphotons = 200000000
     image = 0
     rcount = 0_int64! counter for how many photons dont make from the ring source
     pcount = 0_int64! counter for how many photons dont make from the point source
 
     wavelength = 849d-9
+    bottle = glass_bottle("../res/clearBottle.params", wavelength)
     L2 = plano_convex("../res/planoConvex.params", wavelength)
     L3 = achromatic_doublet("../res/achromaticDoublet.params", wavelength, L2%fb)
 
@@ -103,9 +104,9 @@ program raytrace
     bottleRadius = 17.5d-3!35.0d-3!large!17.5d-3! small
     bottleOffset = 0.!l2%fb - (bottleRadius+0.01d-3)!17.4d-3!8.75d-3!17.4d-3!0.*3.5d-3!bottleradius / 2.d0
 
-    if(l2%fb <= bottleRadius + bottleOffset)error stop "Bottle offset too large!"
+    if(l2%fb <= bottle%radius + bottle%centre%z)error stop "Bottle offset too large!"
     ! distance to surface of bottle
-    distance = L2%fb - (bottleradius - bottleOffset)
+    distance = L2%fb - (bottle%radius - bottle%centre%z)
     !https://en.wikipedia.org/wiki/Axicon#/media/File:Erzeugen_von_Besselstrahlen_durch_ein_Axicon.png
     besselDiameter = 2.* distance * tan(alpha*(n-1.))
 
@@ -116,20 +117,20 @@ program raytrace
     ! open(newunit=u, file="test/ring-smallf-rays.dat", position="append")
 
 !$OMP parallel default(none)&
-!$OMP& shared(L2, L3, bottleRadius, u, nphotons, cosThetaMax)&
-!$OMP& shared(r1, r2, image, bottleOffset, wavelength),&
-!$omp& private(iseed, d, pos, dir, skip, tracker), reduction(+:rcount, pcount)
+!$OMP& shared(L2, L3, bottle, u, nphotons, cosThetaMax)&
+!$OMP& shared(r1, r2, image, wavelength),&
+!$omp& private(d, pos, dir, skip, tracker), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
 
         skip=.false.
         if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
         
-        call ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset, iseed)
+        call ring(pos, dir, r1, r2, cosThetaMax, bottle%Radius, bottle%centre%z)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         !propagate though lens 2
-        call L2%forward(pos, dir, tracker, iseed, skip)
+        call L2%forward(pos, dir, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
         
         if(skip)then
@@ -142,7 +143,7 @@ program raytrace
         end if
 
         !propagate through lens 3
-        call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, iseed, skip)
+        call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         if(skip)then
@@ -180,13 +181,13 @@ program raytrace
         skip=.false.
         if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
-        call point(pos, dir, cosThetaMax, iseed)
+        call point(pos, dir, cosThetaMax)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
-        call glass_bottle(pos, dir, wavelength, 2.5d-3, tracker, iseed, skip)
+        call bottle%forward(pos, dir, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
-        call L2%forward(pos, dir, tracker, iseed, skip)
+        call L2%forward(pos, dir, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
         
         if(skip)then
@@ -198,7 +199,7 @@ program raytrace
             cycle
         end if
 
-        call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, iseed, skip)
+        call L3%forward(pos, dir, L2%fb, L2%fb+L3%f, tracker, skip)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
         if(skip)then

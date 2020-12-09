@@ -8,24 +8,23 @@ module source
         
     contains
     
-    subroutine point(pos, dir, cosThetaMax, iseed)
+    subroutine point(pos, dir, cosThetaMax)
     ! emit isotropically from a point
     ! except bias towards lens
         use vector_class
 
         implicit none
 
-        integer,      intent(INOUT) :: iseed
         type(vector), intent(OUT)   :: pos, dir
         real,         intent(IN)    :: cosThetaMax
 
         real :: phi, cosp, cost, sinp, sint, nxp, nyp, nzp, ran
 
-        phi = twopi * ran2(iseed)
+        phi = twopi * ran2()
         cosp = cos(phi)
         sinp = sin(phi)  
         
-        ran = ran2(iseed)
+        ran = ran2()
         !sample cone taken from pbrt
         cost = (1.d0 - ran) + ran*cosThetaMax
         sint = sqrt(1.d0 - cost**2)
@@ -40,22 +39,21 @@ module source
     end subroutine point
 
 
-    subroutine ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset, iseed)
+    subroutine ring(pos, dir, r1, r2, cosThetaMax, bottleRadius, bottleOffset)
 
         use vector_class
 
         implicit none
 
         type(vector), intent(OUT)   :: pos, dir
-        integer,      intent(INOUT) :: iseed
         real,         intent(IN)    :: r1, r2, cosThetaMax, bottleRadius, bottleOffset
 
         type(vector) :: lenspoint
         real         :: r, theta, posx, posy, posz, dist, nxp, nyp, nzp
 
         !sample on an annulus radii, r1, r2
-        r = ranu(r1, r2, iseed)
-        theta = ran2(iseed) * twopi
+        r = ranu(r1, r2)
+        theta = ran2() * twopi
         posx = sqrt(r) * cos(theta)
         posy = sqrt(r) * sin(theta)
 
@@ -68,8 +66,8 @@ module source
         pos = vector(posx, posy, posz)
 
         !create new z-axis
-        r = ranu(0., 12.7d-3**2, iseed)!0.21787185!0.20427731
-        theta = ran2(iseed) * twopi
+        r = ranu(0., 12.7d-3**2)!0.21787185!0.20427731
+        theta = ran2() * twopi
         posx = sqrt(r) * cos(theta)
         posy = sqrt(r) * sin(theta)
         lenspoint = vector(posx, posy, 37.5d-3)
