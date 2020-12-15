@@ -39,6 +39,45 @@ module source
     end subroutine point
 
 
+    subroutine create_spot(pos, dir, cosThetaMax, nrays, n)
+
+        use vector_class
+
+        implicit none
+
+        type(vector), intent(OUT)   :: pos, dir
+        real,         intent(IN)    :: cosThetaMax
+        integer,      intent(IN)    :: nrays, n
+
+        real :: phi, cosp, cost, sinp, sint, nxp, nyp, nzp
+        real :: nrays_sqrt, phimax, thetaMax, deltaPhi, deltaTheta, theta
+
+        nrays_sqrt = sqrt(real(nrays))
+
+        phimax = twopi
+        thetaMax = acos(cosThetaMax)
+
+        deltaPhi = phimax / nrays_sqrt
+        deltaTheta = thetaMax / nrays_sqrt
+
+        phi = deltaPhi * mod(n, 10)
+        theta = deltaTheta * int(n / 10)
+
+        sinp = sin(phi)
+        cosp = cos(phi)
+
+        cost = cos(theta)
+        sint = sqrt(1. - cost*cost)
+
+        nxp = sint * cosp
+        nyp = sint * sinp
+        nzp = cost
+
+        dir = vector(nxp, nyp, nzp)
+        pos = vector(0., 0, 0.)
+
+    end subroutine create_spot
+
     subroutine ring(pos, dir, r1, r2, bottleRadius, bottleOffset)
 
         use vector_class

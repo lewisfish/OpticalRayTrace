@@ -61,7 +61,7 @@ program raytrace
 
     use constants,    only : pi
     use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
-    use source,       only : ring, point, emit_image
+    use source,       only : ring, point, emit_image, create_spot
     use stackMod,     only : stack
     use utils,        only : str
     use vector_class, only : vector

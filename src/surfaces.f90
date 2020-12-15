@@ -88,7 +88,6 @@ module surfaces
         t = t0
         intersect_cylinder = .true.
         return
-
     end function intersect_cylinder
 
     logical function solveQuadratic(a, b, c, x0, x1)
