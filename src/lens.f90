@@ -173,14 +173,12 @@ module lensMod
         real         :: t
         logical      :: flag
 
-
         !inner surface
         flag = intersect_cylinder(pos, dir, t, this%centre, this%radius - this%thickness)
         if(.not. flag)then
             skip = .true.
             return
         end if
-
         orig = pos
         pos = pos + t * dir
         ! call u%push(vector(pos%x, pos%y, pos%z))
@@ -468,7 +466,10 @@ module lensMod
 
         real, intent(IN) :: wave, a, b, c
 
-        cauchy = a + b *wave**(-2) + c*wave**(-4)
+        real :: wavetmp
+
+        wavetmp = wave*1d6
+        cauchy = a + b *wavetmp**(-2) + c*wavetmp**(-4)
 
     end function cauchy
 

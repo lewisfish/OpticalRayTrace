@@ -24,7 +24,9 @@ function makebuild
   elif [ "$make" = 1 ];then
     make clean && make build $string
   else
-    if [ "$comp" = 'gnu' ] && [ $NUM_THREADS > 1 ];then
+    if [ "$NUM_THREADS" = 1 ];then
+      make clean && make $string
+    else
       make clean && make mp $string
     fi
   fi
