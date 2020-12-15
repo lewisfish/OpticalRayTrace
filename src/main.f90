@@ -81,44 +81,17 @@ program raytrace
     type(achromatic_doublet) :: L3
     type(glass_bottle)       :: bottle
 
-    integer        :: image(-200:200, -200:200, 2), nphotons, i, u, j
-    integer(int64) :: rcount, pcount
-    real           :: d, angle, cosThetaMax, r1, r2, wavelength, tmp, diff
-    real           :: n, alpha, besselDiameter, distance, ringwidth, tot
+    integer        :: image(-200:200, -200:200, 2), nphotons, i, uring, upoint
+    integer(int64) :: rcount, pcount, nphotonsLocal
+    real           :: d, angle, cosThetaMax, r1, r2, wavelength
+    real           :: n, alpha, besselDiameter, distance, ringwidth
     logical        :: skip
-    double precision :: imgout(101, 101)
-    integer :: imgin(101,101)
-
-    ! imgout = 0.
-    ! do i = 1, 200
-    !     do j = 1,200
-    !         if(i == j)imgout(i,j)=i * j
-    !     end do        
-    ! end do
-
-    open(newunit=u,file="../src/bessel-img.dat", form="unformatted", access="stream", status="old")
-    read(u)imgout
-    close(u)
-    !normalise
-    tot = sum(imgout)
-    imgin = 0
-    nphotons = 100000000
-    do i = 1, 101
-        do j = 1, 101
-            tmp = (dble(nphotons) * imgout(i, j)) / dble(tot)
-
-            diff = tmp - int(tmp)
-            if(ran2() < diff .and. diff > 0)then
-                imgin(i,j) = imgin(i, j) + (int(tmp) + 1)
-            else
-                imgin(i,j) = imgin(i, j) + int(tmp)
-            end if
-            ! print*,imgin(i,j)
-        end do
-    end do
+    integer        :: imgin(101,101)
 
 
+    ! call init_emit_image(filename, imgin, nphotons, nphotonsLocal)
 
+    nphotons = 625
     image = 0
     rcount = 0_int64! counter for how many photons dont make from the ring source
     pcount = 0_int64! counter for how many photons dont make from the point source
@@ -147,11 +120,11 @@ program raytrace
     r1 = besselDiameter/1.1d0 - ringWidth
     r2 = (besselDiameter / 2.d0)**2
     r1 = r1**2
-    ! open(newunit=u, file="test/ring-smallf-rays.dat", position="append")
+    ! open(newunit=uring, file="test/ring-smallf-rays.dat", position="append")
 
 !$OMP parallel default(none)&
-!$OMP& shared(L2, L3, bottle, u, nphotons, cosThetaMax, r1, r2, image, wavelength, imgin)&
-!$omp& private(d, pos, dir, skip, tracker), reduction(+:rcount, pcount)
+!$OMP& shared(L2, L3, bottle, u, nphotons, cosThetaMax, r1, r2, image, wavelength)&
+!$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, 1
 
@@ -168,9 +141,9 @@ program raytrace
         if(skip)then
             rcount = rcount + 1_int64
             ! call tracker%zero()
-            ! write(u,*)" "
-            ! write(u,*)" "
-            ! write(u,*)" "
+            ! write(uring,*)" "
+            ! write(uring,*)" "
+            ! write(uring,*)" "
             cycle
         end if
 
@@ -181,9 +154,9 @@ program raytrace
         if(skip)then
             rcount = rcount + 1_int64
             ! call tracker%zero()
-            ! write(u,*)" "
-            ! write(u,*)" "
-            ! write(u,*)" "
+            ! write(uring,*)" "
+            ! write(uring,*)" "
+            ! write(uring,*)" "
             cycle
         end if
 
@@ -193,27 +166,31 @@ program raytrace
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
         call makeImage(image, pos, 1d-2, 1)
         ! do while(.not. tracker%empty())
-        !     write(u,"(3(F10.7,1x))")tracker%pop()
+        !     write(uring,"(3(F10.7,1x))")tracker%pop()
         ! end do
-        ! write(u,*)" "
-        ! write(u,*)" "
-        ! write(u,*)" "
+        ! write(uring,*)" "
+        ! write(uring,*)" "
+        ! write(uring,*)" "
     end do
 !$OMP end do
+! close(uring)
+! $OMP single
+    ! wavelength = 843d-9
+    ! L2 = plano_convex("../res/planoConvex.params", wavelength)
+    ! L3 = achromatic_doublet("../res/achromaticDoublet.params", wavelength, L2%fb)
+! $OMP end single
+    !max angle for point source to lens
+    ! angle = (13.*pi)/90.
+    ! cosThetaMax = cos(angle)
 
-!$OMP single
-    wavelength = 843d-9
-    L2 = plano_convex("../res/planoConvex.params", wavelength)
-    L3 = achromatic_doublet("../res/achromaticDoublet.params", wavelength, L2%fb)
-!$OMP end single
-
-    ! open(newunit=u, file="test/point-smallf-rays.dat", position="append")
+    open(newunit=upoint, file="../test/spot-diag.dat", position="append")
 !$omp do
     do i=1, nphotons
         skip=.false.
         if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
-        call emit_image(imgin, pos, dir)
+        call create_spot(pos, dir, cosThetaMax, nphotons, i)
+        ! call emit_image(imgin, pos, dir)
         ! call point(pos, dir, cosThetaMax)
         ! call tracker%push(vector(pos%x, pos%y, pos%z))
 
@@ -225,10 +202,10 @@ program raytrace
         
         if(skip)then
             pcount = pcount + 1_int64
-            ! call tracker%zero()
-            ! write(u,*)" "
-            ! write(u,*)" "
-            ! write(u,*)" "
+            call tracker%zero()
+            write(upoint,*)" "
+            write(upoint,*)" "
+            write(upoint,*)" "
             cycle
         end if
 
@@ -237,31 +214,33 @@ program raytrace
 
         if(skip)then
             pcount = pcount + 1_int64
-            ! call tracker%zero()
-            ! write(u,*)" "
-            ! write(u,*)" "
-            ! write(u,*)" "
+            call tracker%zero()
+            write(upoint,*)" "
+            write(upoint,*)" "
+            write(upoint,*)" "
             cycle
         end if
 
         !move to image plane
         d = (L2%f+L2%fb+2.*L3%f - pos%z) / dir%z
         pos = pos + dir * d
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        call tracker%push(vector(pos%x, pos%y, pos%z))
         call makeImage(image, pos, 1d-2, 2)
-        ! do while(.not. tracker%empty())
-        !     write(u,"(3(F10.7,1x))")tracker%pop()
-        ! end do
-        ! write(u,*)" "
-        ! write(u,*)" "
-        ! write(u,*)" "
+        do while(.not. tracker%empty())
+            write(upoint,"(3(F10.7,1x))")tracker%pop()
+        end do
+        write(upoint,*)" "
+        write(upoint,*)" "
+        write(upoint,*)" "
     end do
 !$OMP end do
 !$omp end parallel
-! close(u)
+
+close(upoint)
+
 print"(A,1X,f8.2,A)","Ring  transmitted: ",100.*(1.-(rcount/(real(nphotons)))),"%"
 print"(A,1X,f8.2,A)","Point transmitted: ",100.*(1.-(pcount/(real(nphotons)))),"%"
 
-call writeImage(image, "test/normalf-1-")
+! call writeImage(image, "../test/img-emit-")
 
 end program raytrace

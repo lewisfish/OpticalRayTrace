@@ -136,7 +136,6 @@ module source
             do j = 1, size(img, 1)
                 if(img(j, i) > 0)then
                     call emit(pos, dir, j, i)
-!$OMP atomic
                     img(j , i) = img(j, i) - 1
                     return
                 end if
@@ -181,4 +180,43 @@ module source
         dir = dir%magnitude()
 
     end subroutine emit
+
+    subroutine init_emit_image(filename, imgin, nphotons, nphotonsLocal)
+        
+        use omp_lib
+
+        implicit none
+        
+        character(*), intent(IN)  :: filename
+        integer,      intent(IN)  :: nphotons
+        integer,      intent(OUT) :: nphotonsLocal
+        real,         intent(OUT) :: imgin(101, 101)
+
+        real :: imgout(101, 101), tot, tmp, diff
+        integer :: i, j, u
+        
+        imgout = 0.
+
+        open(newunit=u,file=filename, form="unformatted", access="stream", status="old")
+        read(u)imgout
+        close(u)
+
+        !normalise
+        tot = sum(imgout)
+        imgin = 0
+        nphotonsLocal = nphotons / omp_get_max_threads()
+
+        do i = 1, 101
+            do j = 1, 101
+                tmp = (dble(nphotonsLocal) * imgout(i, j)) / dble(tot)
+
+                diff = tmp - int(tmp)
+                if(ran2() < diff .and. diff > 0)then
+                    imgin(i,j) = imgin(i, j) + (int(tmp) + 1)
+                else
+                    imgin(i,j) = imgin(i, j) + int(tmp)
+                end if
+            end do
+        end do
+    end subroutine init_emit_image
 end module source
