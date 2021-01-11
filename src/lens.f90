@@ -17,6 +17,7 @@ module lensMod
         module procedure init_plano_convex
     end interface plano_convex
 
+
     type :: achromatic_doublet
         real :: thickness1, thickness2, thickness, R1, R2, R3
         real :: diameter, radius, fb, f
@@ -32,8 +33,9 @@ module lensMod
 
 
     type :: glass_bottle
-        real         :: nbottle, ncontents, thickness, radius
+        real         :: nbottle, ncontents, thickness, radiusa, radiusb
         type(vector) :: centre
+        logical      :: ellipse
         contains
         procedure :: forward => bottle_forward_sub
     end type glass_bottle
@@ -139,7 +141,8 @@ module lensMod
 
         open(newunit=u, file=file, status="old")
             read(u,*)this%thickness
-            read(u,*)this%radius
+            read(u,*)this%radiusa
+            read(u,*)this%radiusb
             read(u,*)x
             read(u,*)y
             read(u,*)z
@@ -154,6 +157,11 @@ module lensMod
         this%centre = vector(x, y, z)
         this%nbottle = dispersion(wavelength, a1, b1, c1)
         this%ncontents = cauchy(wavelength, a2, b2, c2)
+        if(this%radiusa /= this%radiusb)then
+            this%ellipse = .true.
+        else
+            this%ellipse = .false.
+        end if
 
     end function init_bottle
 
@@ -170,18 +178,25 @@ module lensMod
         logical,      intent(OUT)   :: skip
 
         type(vector) :: normal, orig
-        real         :: t
+        real         :: t, rad1, rad2
         logical      :: flag
 
         !inner surface
-        flag = intersect_cylinder(pos, dir, t, this%centre, this%radius - this%thickness)
+        if(this%ellipse)then
+            !need to divide by 2 to get a,b for ellipse equation
+            rad1 = this%radiusa - this%thickness
+            rad2 = this%radiusb - this%thickness
+            flag = intersect_ellipse(pos, dir, t, this%centre, rad1, rad2)
+        else
+            flag = intersect_cylinder(pos, dir, t, this%centre, this%radiusa - this%thickness)
+        end if
         if(.not. flag)then
             skip = .true.
             return
         end if
         orig = pos
         pos = pos + t * dir
-        ! call u%push(vector(pos%x, pos%y, pos%z))
+        ! call u%push(pos)
 
         orig%z = pos%z
         normal = this%centre - orig
@@ -194,7 +209,11 @@ module lensMod
         end if
 
         !outer surface
-        flag = intersect_cylinder(pos, dir, t, this%centre, this%radius)
+        if(this%ellipse)then
+            flag = intersect_ellipse(pos, dir, t, this%centre, this%radiusa/2., this%radiusb/2.)
+        else
+            flag = intersect_cylinder(pos, dir, t, this%centre, this%radiusa)
+        end if
         if(.not. flag)then
             skip = .true.
             return
@@ -202,7 +221,7 @@ module lensMod
 
         orig = pos
         pos = pos + t * dir
-        ! call u%push(vector(pos%x, pos%y, pos%z))
+        ! call u%push(pos)
 
         orig%z = pos%z
         normal = this%centre - orig
@@ -246,7 +265,7 @@ module lensMod
             return
         end if
 
-        ! call u%push(vector(pos%x, pos%y, pos%z))
+        ! call u%push(pos)
 
         flag = .false.
         call reflect_refract(dir, this%flatNormal, this%n1, this%n2, flag)
@@ -272,9 +291,6 @@ module lensMod
         end if
 
     end subroutine plano_forward_sub
-
-
-
 
     subroutine plano_backward_sub(this, pos, dir, u, skip)
 
@@ -316,13 +332,12 @@ module lensMod
             return
         end if
 
-        ! call u%push(vector(pos%x, pos%y, pos%z))
+        ! call u%push(pos)
 
         flag = .false.
         call reflect_refract(dir, this%flatNormal, this%n1, this%n2, flag)
 
     end subroutine plano_backward_sub
-
 
 
     subroutine doublet_forward_sub(this, pos, dir, u, skip)
@@ -383,7 +398,7 @@ module lensMod
         end if
 
 
-        ! call u%push(vector(pos%x, pos%y, pos%z))
+        ! call u%push(pos)
 
 
         !second sphere
@@ -405,7 +420,7 @@ module lensMod
         end if
 
 
-        ! call u%push(vector(pos%x, pos%y, pos%z))
+        ! call u%push(pos)
 
         !third sphere
         flag = intersect_sphere(pos, dir, t, this%centre3, this%R3)
@@ -423,7 +438,7 @@ module lensMod
         end if
 
 
-        ! call u%push(vector(pos%x, pos%y, pos%z))
+        ! call u%push(pos)
 
         ! origpos = pos
 
