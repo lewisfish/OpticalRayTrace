@@ -81,36 +81,41 @@ program raytrace
     type(achromatic_doublet) :: L3
     type(glass_bottle)       :: bottle
 
-    integer        :: image(-200:200, -200:200, 2), nphotons, i, uring, upoint
+    integer        :: image(-200:200, -200:200, 2), nphotons, i, uring, upoint, u
     integer(int64) :: rcount, pcount, nphotonsLocal
     real           :: d, angle, cosThetaMax, r1, r2, wavelength
     real           :: n, alpha, besselDiameter, distance, ringwidth
     logical        :: skip
     integer        :: imgin(101,101)
+    character(len=256) :: filename
 
-
-    ! call init_emit_image(filename, imgin, nphotons, nphotonsLocal)
-
-    nphotons = 625
     image = 0
     rcount = 0_int64! counter for how many photons dont make from the ring source
     pcount = 0_int64! counter for how many photons dont make from the point source
 
-    wavelength = 849d-9
-    bottle = glass_bottle("../res/clearBottle.params", wavelength)
-    L2 = plano_convex("../res/planoConvex.params", wavelength)
-    L3 = achromatic_doublet("../res/achromaticDoublet.params", wavelength, L2%fb)
+    open(newunit=u, file="../res/settings.params", status="old")
+        read(u,*) ringWidth
+        read(u,*) wavelength
+        read(u,*) nphotons
+        read(u,*) alpha
+        read(u,*) n
+        !read in params files
+        read(u,*) filename
+        bottle = glass_bottle("../res/"//trim(filename), wavelength)
+        read(u,*) filename
+        L2 = plano_convex("../res/"//trim(filename), wavelength)
+        read(u,*) filename
+        L3 = achromatic_doublet("../res/"//trim(filename), wavelength, L2%fb, L2%thickness)
+        read(u,*) filename
+        call init_emit_image("../res/"//trim(filename), imgin, nphotons, nphotonsLocal)
+    close(u)
 
+    alpha = alpha * pi / 180.
     !max angle for point source to lens
     angle = atan(L2%radius / L2%fb)
     cosThetaMax = cos(angle)
 
-    !size of bessel annulus 
-    ringWidth = 0.5d-3 ! half beam size incident on axicon -> guess is 1mm in diameter
-    alpha = 5.d0 * pi / 180.
-    n = 1.45d0
-
-    if(l2%fb <= bottle%radius + bottle%centre%z)error stop "Bottle offset too large!"
+    if(l2%fb <= bottle%radiusa + bottle%centre%z)error stop "Bottle offset too large!"
     ! distance to surface of bottle
     distance = L2%fb - (bottle%radius - bottle%centre%z)
     !https://en.wikipedia.org/wiki/Axicon#/media/File:Erzeugen_von_Besselstrahlen_durch_ein_Axicon.png
@@ -123,7 +128,7 @@ program raytrace
     ! open(newunit=uring, file="test/ring-smallf-rays.dat", position="append")
 
 !$OMP parallel default(none)&
-!$OMP& shared(L2, L3, bottle, u, nphotons, cosThetaMax, r1, r2, image, wavelength)&
+!$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, 1
@@ -131,12 +136,12 @@ program raytrace
         skip=.false.
         if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
         
-        call ring(pos, dir, r1, r2, bottle%Radius, bottle%centre%z)
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        call ring(pos, dir, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
+        ! call tracker%push(pos)
 
         !propagate though lens 2
         call L2%forward(pos, dir, tracker, skip)
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
         
         if(skip)then
             rcount = rcount + 1_int64
@@ -149,7 +154,7 @@ program raytrace
 
         !propagate through lens 3
         call L3%forward(pos, dir, tracker, skip)
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
 
         if(skip)then
             rcount = rcount + 1_int64
@@ -161,9 +166,9 @@ program raytrace
         end if
 
         !move to image plane
-        d = (L2%f+L2%fb+2.*L3%f - pos%z) / dir%z
+        d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
         pos = pos + dir * d
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
         call makeImage(image, pos, 1d-2, 1)
         ! do while(.not. tracker%empty())
         !     write(uring,"(3(F10.7,1x))")tracker%pop()
@@ -183,7 +188,7 @@ program raytrace
     ! angle = (13.*pi)/90.
     ! cosThetaMax = cos(angle)
 
-    open(newunit=upoint, file="../test/spot-diag.dat", position="append")
+    open(newunit=upoint, file="../data/spot-diags/point-large-bottle-thick-785nm.dat")
 !$omp do
     do i=1, nphotons
         skip=.false.
@@ -192,13 +197,13 @@ program raytrace
         call create_spot(pos, dir, cosThetaMax, nphotons, i)
         ! call emit_image(imgin, pos, dir)
         ! call point(pos, dir, cosThetaMax)
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
 
         ! call bottle%forward(pos, dir, tracker, skip)
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
 
         call L2%forward(pos, dir, tracker, skip)
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
         
         if(skip)then
             pcount = pcount + 1_int64
@@ -210,7 +215,7 @@ program raytrace
         end if
 
         call L3%forward(pos, dir, tracker, skip)
-        ! call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
 
         if(skip)then
             pcount = pcount + 1_int64
@@ -222,9 +227,9 @@ program raytrace
         end if
 
         !move to image plane
-        d = (L2%f+L2%fb+2.*L3%f - pos%z) / dir%z
+        d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
         pos = pos + dir * d
-        call tracker%push(vector(pos%x, pos%y, pos%z))
+        ! call tracker%push(pos)
         call makeImage(image, pos, 1d-2, 2)
         do while(.not. tracker%empty())
             write(upoint,"(3(F10.7,1x))")tracker%pop()

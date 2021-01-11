@@ -78,14 +78,15 @@ module source
 
     end subroutine create_spot
 
-    subroutine ring(pos, dir, r1, r2, bottleRadius, bottleOffset)
+    subroutine ring(pos, dir, r1, r2, bottleRadiusa, bottleRadiusb, ellipse, bottleOffset)
 
         use vector_class
 
         implicit none
 
         type(vector), intent(OUT)   :: pos, dir
-        real,         intent(IN)    :: r1, r2, bottleRadius, bottleOffset
+        real,         intent(IN)    :: r1, r2, bottleRadiusa, bottleOffset, bottleRadiusb
+        logical,      intent(IN)    :: ellipse
 
         type(vector) :: lenspoint
         real         :: r, theta, posx, posy, posz, dist, nxp, nyp, nzp
@@ -101,7 +102,11 @@ module source
         ! assuming a = 0
         ! (y-a)^2 + (z-b)^2 = r^2
         ! bottleOffset = -bottleRadius / 2.d0
-        posz = bottleOffset + sqrt((bottleRadius)**2 - posy**2)
+        if(ellipse)then
+            posz = bottleOffset + sqrt(bottleRadiusa**2 - (posy*bottleRadiusa/bottleRadiusb)**2)
+        else
+            posz = bottleOffset + sqrt((bottleRadiusa)**2 - posy**2)
+        end if
         pos = vector(posx, posy, posz)
 
         !create new z-axis

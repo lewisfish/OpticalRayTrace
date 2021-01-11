@@ -5,7 +5,7 @@ module surfaces
     implicit none
 
     private
-    public :: intersect_sphere, intersect_cylinder
+    public :: intersect_sphere, intersect_cylinder, intersect_ellipse
     public :: reflect_refract
 
     contains
@@ -89,6 +89,53 @@ module surfaces
         intersect_cylinder = .true.
         return
     end function intersect_cylinder
+
+
+    logical function intersect_ellipse(orig, dir, t, centre, semia, semib)
+    ! calculates where a line, with origin:orig and direction:dir hits a ellipse, centre:centre and axii:semia, semib
+    ! returns true if intersection exists
+    ! returns t, the paramertised parameter of the line equation
+    ! adapted from scratchapixel and pbrt
+    ! need to check z height after moving ray
+    ! if not this is an infinte ellipse-cylinder
+    ! ellipse lies length ways along z-axis
+    ! semia and semib are the semimajor axis which are the half width and height.
+        
+        implicit none
+
+        type(vector), intent(IN)  :: dir, orig, centre
+        real,         intent(OUT) :: t
+        real,         intent(IN)  :: semia, semib
+
+        type(vector) :: L
+        real         :: t0, t1, a, b, c, tmp, semia2div, semib2div
+
+        intersect_ellipse = .false.
+
+        semia2div = 1. / semia**2
+        semib2div = 1. / semib**2
+
+        L = orig - centre
+        a = semia2div * dir%z**2 + semib2div * dir%y**2
+        b = 2 * (semia2div * dir%z * L%z + semib2div * dir%y * L%y)
+        c = semia2div * L%z**2 + semib2div * L%y**2 - 1
+
+        if(.not. solveQuadratic(a, b, c, t0, t1))return
+        if(t0 > t1)then
+            tmp = t1
+            t1 = t0
+            t0 = tmp
+        end if
+        if(t0 < 0.d0)then
+            t0 = t1
+            if(t0 < 0.)return
+        end if
+
+        t = t0
+        intersect_ellipse = .true.
+        return
+    end function intersect_ellipse
+
 
     logical function solveQuadratic(a, b, c, x0, x1)
     ! solves quadratic equation given coeffs a, b, and c

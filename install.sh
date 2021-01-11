@@ -15,9 +15,7 @@ function showhelp
 
 function makebuild
 {
-  if [ "$comp" = 'gnu' ];then
-      string="FCOMP=gfortran"
-  fi
+  string="FCOMP=gfortran"
 
   if [ "$debug" = 1 ];then
     make clean && make debug $string
@@ -78,7 +76,6 @@ function run
 NUM_THREADS=32
 debug=0
 help=0
-comp="gnu"
 make=0
 
 set -e
@@ -103,7 +100,7 @@ while [ "$1" != "" ]; do
 done
 
 makebuild
-if [ "$NUM_THREADS" > 1 ]; then
+if [ "$NUM_THREADS" != "1" ]; then
   export OMP_NUM_THREADS=$NUM_THREADS
 fi
 run

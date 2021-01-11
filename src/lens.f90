@@ -45,12 +45,12 @@ module lensMod
 
     contains
 
-    type(achromatic_doublet) function init_achromatic_doublet(file, wavelength, D1) result(this)
+    type(achromatic_doublet) function init_achromatic_doublet(file, wavelength, D1, D1thickness) result(this)
 
         implicit none
 
         character(*), intent(IN) :: file
-        real,         intent(IN) :: D1, wavelength
+        real,         intent(IN) :: D1, wavelength, D1thickness
         
         integer :: u
         real    :: b11, b21, b31, c11, c21, c31
@@ -86,9 +86,9 @@ module lensMod
         this%radius = this%diameter / 2.d0
         this%thickness = this%thickness1 + this%thickness2
 
-        this%centre1 = vector(0., 0., D1 + (D1 + this%f) + this%f - this%thickness - this%fb + this%R1)
-        this%centre2 = vector(0., 0., D1 + (D1 + this%f) + this%f - this%thickness - this%fb + this%thickness1 - this%R2)
-        this%centre3 = vector(0., 0., D1 + (D1 + this%f) + this%f - this%fb - this%R3)
+        this%centre1 = vector(0., 0., D1 + D1thickness + (D1 + this%fb) + this%r1)
+        this%centre2 = vector(0., 0., D1 + D1thickness + (D1 + this%fb) + this%thickness1 - this%r2)
+        this%centre3 = vector(0., 0., D1 + D1thickness + (D1 + this%fb) + this%thickness - this%r3)
 
     end function init_achromatic_doublet
 
