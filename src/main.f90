@@ -26,13 +26,17 @@ program raytrace
     integer(int64) :: rcount, pcount
     real           :: d, angle, cosThetaMax, r1, r2, wavelength
     real           :: n, alpha, besselDiameter, distance, ringwidth
-    logical        :: skip
+    logical        :: skip, use_tracker, spot_source, image_source, point_source, use_bottle
     integer        :: imgin(512,512), nphotonsLocal
-    character(len=256) :: filename
+    character(len=256) :: filename, source_type
 
     image = 0
     rcount = 0_int64! counter for how many photons dont make from the ring source
     pcount = 0_int64! counter for how many photons dont make from the point source
+
+    point_source = .false.
+    spot_source = .false.
+    image_source = .false.
 
     open(newunit=u, file="../res/settings.params", status="old")
         read(u,*) ringWidth
@@ -40,6 +44,21 @@ program raytrace
         read(u,*) nphotons
         read(u,*) alpha
         read(u,*) n
+        read(u,*) use_bottle
+        read(u,*) use_tracker
+        if(nphotons > 10000 .and. use_tracker)error stop "Too many photons for tracker use!"
+        read(u,*) source_type
+
+        if(trim(source_type) == "image")then
+            image_source = .true.
+        elseif(trim(source_type) == "spot")then
+            spot_source = .true.
+        elseif(trim(source_type) == "point")then
+            point_source = .true.        
+        else
+            error stop "No such source type!"
+        end if
+
         !read in params files
         read(u,*) filename
         bottle = glass_bottle("../res/"//trim(filename), wavelength)
@@ -66,7 +85,9 @@ program raytrace
     r1 = besselDiameter/1.0d0 - ringWidth
     r2 = (besselDiameter / 2.d0)**2
     r1 = r1**2
-    ! open(newunit=uring, file="test/ring-smallf-rays.dat", position="append")
+    if(use_tracker)then
+        open(newunit=uring, file="test/ring-smallf-rays.dat", position="append")
+    end if
 
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
@@ -78,48 +99,48 @@ program raytrace
         if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
         
         call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
-        ! call tracker%push(pos)
+        if(use_tracker)call tracker%push(pos)
 
         !propagate though lens 2
         call L2%forward(pos, dir, tracker, skip)
-        ! call tracker%push(pos)
+        if(use_tracker)call tracker%push(pos)
         
         if(skip)then
             rcount = rcount + 1_int64
-            ! call tracker%zero()
-            ! write(uring,*)" "
-            ! write(uring,*)" "
-            ! write(uring,*)" "
+            call tracker%zero()
+            write(uring,*)" "
+            write(uring,*)" "
+            write(uring,*)" "
             cycle
         end if
 
         !propagate through lens 3
         call L3%forward(pos, dir, tracker, skip)
-        ! call tracker%push(pos)
+        if(use_tracker)call tracker%push(pos)
 
         if(skip)then
             rcount = rcount + 1_int64
-            ! call tracker%zero()
-            ! write(uring,*)" "
-            ! write(uring,*)" "
-            ! write(uring,*)" "
+            call tracker%zero()
+            write(uring,*)" "
+            write(uring,*)" "
+            write(uring,*)" "
             cycle
         end if
 
         !move to image plane
         d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
         pos = pos + dir * d
-        ! call tracker%push(pos)
+        if(use_tracker)call tracker%push(pos)
         call makeImage(image, pos, 1d-2, 1)
-        ! do while(.not. tracker%empty())
-        !     write(uring,"(3(F10.7,1x))")tracker%pop()
-        ! end do
-        ! write(uring,*)" "
-        ! write(uring,*)" "
-        ! write(uring,*)" "
+        do while(.not. tracker%empty())
+            write(uring,"(3(F10.7,1x))")tracker%pop()
+        end do
+        write(uring,*)" "
+        write(uring,*)" "
+        write(uring,*)" "
     end do
 !$OMP end do
-! close(uring)
+if(use_tracker)close(uring)
 ! $OMP single
     ! wavelength = 843d-9
     ! L2 = plano_convex("../res/planoConvex.params", wavelength)
@@ -128,50 +149,62 @@ program raytrace
     !max angle for point source to lens
     ! angle = (13.*pi)/90.
     ! cosThetaMax = cos(angle)
-
-    open(newunit=upoint, file="../data/test-conver1.dat")
+    if(use_tracker)then
+        open(newunit=upoint, file="../data/test-conver1.dat")
+    end if
 !$omp do
     do i=1, nphotons
         skip=.false.
         if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
-        ! call create_spot(pos, dir, cosThetaMax, nphotons, i)
-        call emit_image(imgin, pos, dir, L2)
-        ! call point(pos, dir, cosThetaMax)
-        ! call tracker%push(pos)
+        if(image_source)then
+            call emit_image(imgin, pos, dir, L2)
+        elseif(point_source)then
+            call point(pos, dir, cosThetaMax)
+        elseif(spot_source)then
+            call create_spot(pos, dir, cosThetaMax, nphotons, i)
+        end if
+        if(use_tracker)call tracker%push(pos)
 
-        ! call bottle%forward(pos, dir, tracker, skip)
-        ! call tracker%push(pos)
+        if(use_bottle)then
+            call bottle%forward(pos, dir, tracker, skip)
+            if(use_tracker)call tracker%push(pos)
+        end if
 
         call L2%forward(pos, dir, tracker, skip)
-        ! call tracker%push(pos)
+        if(use_tracker)call tracker%push(pos)
         
         if(skip)then
             pcount = pcount + 1_int64
-            call tracker%zero()
-            write(upoint,*)" "
-            write(upoint,*)" "
-            write(upoint,*)" "
+            if(use_tracker)then
+                call tracker%zero()
+                write(upoint,*)" "
+                write(upoint,*)" "
+                write(upoint,*)" "
+            end if
             cycle
         end if
 
         call L3%forward(pos, dir, tracker, skip)
-        ! call tracker%push(pos)
+        if(use_tracker)call tracker%push(pos)
 
         if(skip)then
             pcount = pcount + 1_int64
-            call tracker%zero()
-            write(upoint,*)" "
-            write(upoint,*)" "
-            write(upoint,*)" "
+            if(use_tracker)then
+                call tracker%zero()
+                write(upoint,*)" "
+                write(upoint,*)" "
+                write(upoint,*)" "
+            end if
             cycle
         end if
 
         !move to image plane
         d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
+
         pos = pos + dir * d
-        ! call tracker%push(pos)
-        call makeImage(image, pos, 1d-2, 2)
+        if(use_tracker)call tracker%push(pos)
+        ! call makeImage(image, pos, 1d-2, 2)
         do while(.not. tracker%empty())
             write(upoint,"(3(F10.7,1x))")tracker%pop()
         end do

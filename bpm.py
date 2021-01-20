@@ -30,66 +30,6 @@ def cart2pol(x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return theta, rho
 
 
-def create_bottle(x: np.ndarray, y: np.ndarray,
-                  centre: List[float], radius: float,
-                  width: float, dx: float,
-                  dz: float) -> np.ndarray:
-    """set air to 2, set glass to 1, set alcohol to 0
-
-    Parameters
-    ----------
-    x : np.ndarray
-        Description
-    y : np.ndarray
-        Description
-    centre : List[float]
-        Description
-    radius : float
-        Description
-    width : float
-        Description
-    dx : float
-        Description
-    dz : float
-        Description
-
-    Returns
-    -------
-    np.ndarray
-        Description
-
-    """
-
-    real_width = width / dx
-    real_radius = radius / dx
-    real_centre = [centre[0]*dx, centre[1]*dx]
-
-    out = np.ones_like(x)
-    rin = np.sqrt((x - real_centre[0])**2 + (y - real_centre[1])**2)
-    out[rin >= real_radius] = 2
-    out[rin <= real_radius-real_width] = 0
-    return out
-
-
-def create_bottle2(x, y, centre, radius, width, dx, dz):
-
-    out = np.ones((512, 512))
-    real_centre = [centre[0]*dx, centre[1]*dz]
-
-    x = 0
-    for i in range(512):
-        z = 0
-        for j in range(512):
-            if np.sqrt((z - real_centre[1])**2+(x - real_centre[0])**2) >= radius:
-                out[i, j] = 2.
-            elif np.sqrt((z - real_centre[1])**2+(x - real_centre[0])**2) <= radius - width:
-                out[i, j] = 0.
-            z += dz
-        x += dx
-
-    return out
-
-
 def filled_space_prop(e: np.ndarray, arg: np.ndarray) -> np.ndarray:
     """Propagate beam through filled space
 
