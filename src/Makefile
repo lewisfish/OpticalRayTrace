@@ -11,9 +11,10 @@ SRCS =      constants.f90 \
 			vector_class.f90 \
 			stackMod.f90 \
 			random_mod.f90 \
-			sourceMod.f90 \
+			imageMod.f90 \
 			surfaces.f90 \
 			lens.f90 \
+			sourceMod.f90 \
 			main.f90 
 			
 OBJECTS = $(SRCS:.f90=.o)

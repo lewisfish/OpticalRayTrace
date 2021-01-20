@@ -1,7 +1,8 @@
 module source
 
-    use random,    only : ranu, ran2
     use constants, only : Pi, twopi
+    use lensMod,   only : plano_convex
+    use random,    only : ranu, ran2
     use vector_class
 
     implicit none
@@ -78,15 +79,16 @@ module source
 
     end subroutine create_spot
 
-    subroutine ring(pos, dir, r1, r2, bottleRadiusa, bottleRadiusb, ellipse, bottleOffset)
+    subroutine ring(pos, dir, lens, r1, r2, bottleRadiusa, bottleRadiusb, ellipse, bottleOffset)
 
         use vector_class
 
         implicit none
 
-        type(vector), intent(OUT)   :: pos, dir
-        real,         intent(IN)    :: r1, r2, bottleRadiusa, bottleOffset, bottleRadiusb
-        logical,      intent(IN)    :: ellipse
+        type(plano_convex), intent(IN)  :: lens
+        type(vector),       intent(OUT) :: pos, dir
+        real,               intent(IN)  :: r1, r2, bottleRadiusa, bottleOffset, bottleRadiusb
+        logical,            intent(IN)  :: ellipse
 
         type(vector) :: lenspoint
         real         :: r, theta, posx, posy, posz, dist, nxp, nyp, nzp
@@ -110,11 +112,11 @@ module source
         pos = vector(posx, posy, posz)
 
         !create new z-axis
-        r = ranu(0., 12.7d-3**2)!0.21787185!0.20427731
+        r = ranu(0., lens%radius**2)
         theta = ran2() * twopi
         posx = sqrt(r) * cos(theta)
         posy = sqrt(r) * sin(theta)
-        lenspoint = vector(posx, posy, 37.5d-3)
+        lenspoint = vector(posx, posy, lens%fb)
 
         dist = sqrt((lenspoint%x - pos%x)**2 + (lenspoint%y - pos%y)**2 + (lenspoint%z - pos%z)**2)
 
@@ -128,19 +130,20 @@ module source
     end subroutine ring
 
 
-    subroutine emit_image(img, pos, dir)
+    subroutine emit_image(img, pos, dir, lens)
 
         implicit none
 
-        type(vector), intent(OUT)   :: pos, dir
-        integer,      intent(INOUT) :: img(:, :)
+        type(plano_convex), intent(IN)    :: lens
+        type(vector),       intent(OUT)   :: pos, dir
+        integer,            intent(INOUT) :: img(:, :)
 
         integer :: i, j
 
         do i = 1, size(img, 2)
             do j = 1, size(img, 1)
                 if(img(j, i) > 0)then
-                    call emit(pos, dir, j, i)
+                    call emit(pos, dir, lens, j, i)
                     img(j , i) = img(j, i) - 1
                     return
                 end if
@@ -149,31 +152,32 @@ module source
 
     end subroutine emit_image
 
-    subroutine emit(pos, dir, i, j)
+    subroutine emit(pos, dir, lens, i, j)
         
         implicit none
 
-        type(vector), intent(OUT) :: pos, dir 
-        integer,      intent(IN)  :: i, j
+        type(plano_convex), intent(IN)  :: lens
+        type(vector),       intent(OUT) :: pos, dir 
+        integer,            intent(IN)  :: i, j
 
         real :: x, y, z, dist, r, theta, posx, posy, nxp, nyp, nzp
         real :: dx, dy
         type(vector) :: lenspoint
 
-        dx = 2d-2 / 101.
+        dx = 5000d-6 / 512.
         dy = dx
 
-        x = ranu((i-1.) * dx, i * dx) - 1d-2
-        y = ranu((j-1.) * dx, j * dx) - 1d-2
+        x = ranu((i-1.) * dx, i * dx) - 2500d-6
+        y = ranu((j-1.) * dx, j * dx) - 2500d-6
         z = 0.d0
         pos = vector(x, y, z)
 
 
-        r = ranu(0., 12.7d-3**2)!
+        r = ranu(0., lens%radius**2)!
         theta = ran2() * twopi
         posx = sqrt(r) * cos(theta)
         posy = sqrt(r) * sin(theta)
-        lenspoint = vector(posx, posy, 37.5d-3)
+        lenspoint = vector(posx, posy, lens%fb)
 
         dist = sqrt((lenspoint%x - pos%x)**2 + (lenspoint%y - pos%y)**2 + (lenspoint%z - pos%z)**2)
 
@@ -195,12 +199,12 @@ module source
         character(*), intent(IN)  :: filename
         integer,      intent(IN)  :: nphotons
         integer,      intent(OUT) :: nphotonsLocal
-        real,         intent(OUT) :: imgin(101, 101)
+        integer,      intent(OUT) :: imgin(512, 512)
 
-        real :: imgout(101, 101), tot, tmp, diff
+        real :: imgout(512, 512), tot, tmp, diff
         integer :: i, j, u
         
-        imgout = 0.
+        imgout = 0
 
         open(newunit=u,file=filename, form="unformatted", access="stream", status="old")
         read(u)imgout
@@ -209,10 +213,13 @@ module source
         !normalise
         tot = sum(imgout)
         imgin = 0
+#ifdef _OPENMP
         nphotonsLocal = nphotons / omp_get_max_threads()
-
-        do i = 1, 101
-            do j = 1, 101
+#else
+        nphotonsLocal = nphotons
+#endif
+        do i = 1, 512
+            do j = 1, 512
                 tmp = (dble(nphotonsLocal) * imgout(i, j)) / dble(tot)
 
                 diff = tmp - int(tmp)
