@@ -27,12 +27,14 @@ program raytrace
     real           :: besselDiameter, distance
     logical        :: skip
     integer        :: imgin(512,512), nphotonsLocal
+    character(len=:), allocatable :: filename
 
     image = 0
     rcount = 0_int64! counter for how many photons dont make from the ring source
     pcount = 0_int64! counter for how many photons dont make from the point source
 
     call setup_sim(L2, L3, bottle, imgin, nphotonsLocal)
+
     !max angle for point source to lens
     angle = atan(L2%radius / L2%fb)
     cosThetaMax = cos(angle)
@@ -49,7 +51,7 @@ program raytrace
     r1 = r1**2
 
     if(use_tracker)then
-        open(newunit=uring, file="test/ring-smallf-rays.dat", position="append")
+        open(newunit=uring, file=folder//"blah-delete.dat")
     end if
 
 !$OMP parallel default(none)&
@@ -114,8 +116,10 @@ if(use_tracker)close(uring)
     ! angle = (13.*pi)/90.
     ! cosThetaMax = cos(angle)
     if(use_tracker)then
-        open(newunit=upoint, file="../data/test-conver1.dat")
+        filename = trim(adjustl(source_type))//"_bottle_"//str(use_bottle)
+        open(newunit=upoint, file=folder//filename//".dat")
     end if
+
 !$omp do
     do i=1, nphotons
         skip=.false.

@@ -8,6 +8,7 @@ module setup
     integer :: nphotons
     logical :: use_tracker, use_bottle, point_source, spot_source, image_source
     character(len=256) :: source_type
+    character(len=:), allocatable :: folder
 
     contains
     
@@ -28,6 +29,7 @@ module setup
         
         use constants, only : pi
         use source,    only : init_emit_image
+        use utils,     only : chdir
 
         implicit none
 
@@ -36,7 +38,7 @@ module setup
         type(glass_bottle),       intent(OUT) :: bottle
         integer,                  intent(OUT) :: nphotonsLocal, image(:, :)
 
-        integer            :: i, u
+        integer            :: i, u, io
         character(len=256) :: arg, filename
 
         point_source = .false.
@@ -80,6 +82,17 @@ module setup
             L3 = achromatic_doublet("../res/"//trim(filename), wavelength, L2%fb, L2%thickness)
             read(u,*) filename
             call init_emit_image("../res/"//trim(filename), image, nphotons, nphotonsLocal)
+            
+            ! setup folder to save data to.
+            read(u,*) filename
+            call chdir("../data/"//trim(filename), io)
+            if(io /= 0)then
+                call execute_command_line("mkdir ../data/"//trim(filename))
+            else
+                call chdir("../../bin/", io)
+            end if
+            folder = "../data/"//trim(filename)//"/"
+
         close(u)    
 
     end subroutine read_settings

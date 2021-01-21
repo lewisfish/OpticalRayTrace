@@ -6,7 +6,8 @@
 true                        # use bottle
 true                        # use tracker?
 spot                        # Light source for in the bottle [image, spot, point]
-clearBottle.params
-planoConvex.params
-achromaticDoublet.params
-bessel-smear.dat
+clearBottle.params          # bottle
+planoConvex.params          # L2 lens
+achromaticDoublet.params    # L3 lens
+bessel-smear.dat            # image source
+settings                    # folder to save data to, must be in data folder

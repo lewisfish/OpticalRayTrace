@@ -51,6 +51,7 @@ module utils
         ! module procedure str_R4
         module procedure str_R8
         module procedure str_R8array
+        module procedure str_logical
         module procedure str_logicalarray
     end interface str
 
@@ -61,12 +62,37 @@ module utils
         module procedure swap_R8
     end interface swap
 
+    interface
+        integer function c_chdir(path) bind(C,name="chdir")
+            use iso_c_binding
+            character(kind=c_char) :: path(*)
+        end function
+    end interface
+
     private
-    public :: str, swap, colour, mem_free
+    public :: str, swap, colour, mem_free, chdir
     public :: bold, italic, underline, strikethrough, black, red, green, yellow, blue, magenta, cyan, white
     public :: black_b, red_b, green_b, yellow_b, blue_b, magenta_b, cyan_b, white_b
 
     contains
+
+
+        subroutine chdir(path, error)
+        ! taken from https://stackoverflow.com/a/26731789/6106938
+            use iso_c_binding
+
+            implicit none
+
+            character(*),      intent(IN) :: path
+            integer, optional, intent(OUT) :: error
+
+            integer :: local_error
+
+            local_error = c_chdir(path//c_null_char)
+            if(present(error))error = local_error
+
+        end subroutine chdir
+
 
         subroutine swap_I(a, b)
 
@@ -239,6 +265,21 @@ module utils
             end do
 
         end function str_R8array
+
+
+        function str_logical(a)
+
+            implicit none
+
+            logical, intent(IN) :: a
+
+            character(len=:), allocatable :: str_logical
+            character(len=100) :: string
+
+            write(string, '(L1)') a
+            str_logical = trim(string)
+
+        end function str_logical
 
 
         function str_logicalarray(a)
