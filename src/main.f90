@@ -1,11 +1,11 @@
 program raytrace
 
-    use constants,    only : pi
     use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
     use source,       only : ring, point, emit_image, create_spot, init_emit_image
     use stackMod,     only : stack
     use utils,        only : str
     use vector_class, only : vector
+    use setup
     use imageMod
     use OMP_LIB
     use random, only : ran2
@@ -13,7 +13,6 @@ program raytrace
 
     implicit none
     
-
     type(vector) :: pos, dir
     type(stack)  :: tracker
     
@@ -22,55 +21,18 @@ program raytrace
     type(achromatic_doublet) :: L3
     type(glass_bottle)       :: bottle
 
-    integer        :: image(-200:200, -200:200, 2), nphotons, i, uring, upoint, u
+    integer        :: image(-200:200, -200:200, 2), i, uring, upoint
     integer(int64) :: rcount, pcount
-    real           :: d, angle, cosThetaMax, r1, r2, wavelength
-    real           :: n, alpha, besselDiameter, distance, ringwidth
-    logical        :: skip, use_tracker, spot_source, image_source, point_source, use_bottle
+    real           :: d, angle, cosThetaMax, r1, r2
+    real           :: besselDiameter, distance
+    logical        :: skip
     integer        :: imgin(512,512), nphotonsLocal
-    character(len=256) :: filename, source_type
 
     image = 0
     rcount = 0_int64! counter for how many photons dont make from the ring source
     pcount = 0_int64! counter for how many photons dont make from the point source
 
-    point_source = .false.
-    spot_source = .false.
-    image_source = .false.
-
-    open(newunit=u, file="../res/settings.params", status="old")
-        read(u,*) ringWidth
-        read(u,*) wavelength
-        read(u,*) nphotons
-        read(u,*) alpha
-        read(u,*) n
-        read(u,*) use_bottle
-        read(u,*) use_tracker
-        if(nphotons > 10000 .and. use_tracker)error stop "Too many photons for tracker use!"
-        read(u,*) source_type
-
-        if(trim(source_type) == "image")then
-            image_source = .true.
-        elseif(trim(source_type) == "spot")then
-            spot_source = .true.
-        elseif(trim(source_type) == "point")then
-            point_source = .true.        
-        else
-            error stop "No such source type!"
-        end if
-
-        !read in params files
-        read(u,*) filename
-        bottle = glass_bottle("../res/"//trim(filename), wavelength)
-        read(u,*) filename
-        L2 = plano_convex("../res/"//trim(filename), wavelength)
-        read(u,*) filename
-        L3 = achromatic_doublet("../res/"//trim(filename), wavelength, L2%fb, L2%thickness)
-        read(u,*) filename
-        call init_emit_image("../res/"//trim(filename), imgin, nphotons, nphotonsLocal)
-    close(u)
-
-    alpha = alpha * pi / 180.
+    call setup_sim(L2, L3, bottle, imgin, nphotonsLocal)
     !max angle for point source to lens
     angle = atan(L2%radius / L2%fb)
     cosThetaMax = cos(angle)
@@ -85,12 +47,14 @@ program raytrace
     r1 = besselDiameter/1.0d0 - ringWidth
     r2 = (besselDiameter / 2.d0)**2
     r1 = r1**2
+
     if(use_tracker)then
         open(newunit=uring, file="test/ring-smallf-rays.dat", position="append")
     end if
 
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
+!$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, 1
@@ -215,7 +179,7 @@ if(use_tracker)close(uring)
 !$OMP end do
 !$omp end parallel
 
-close(upoint)
+if(use_tracker)close(upoint)
 
 print"(A,1X,f8.2,A)","Ring  transmitted: ",100.*(1.-(rcount/(real(nphotons)))),"%"
 print"(A,1X,f8.2,A)","Point transmitted: ",100.*(1.-(pcount/(real(nphotons)))),"%"

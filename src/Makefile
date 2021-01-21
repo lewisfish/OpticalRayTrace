@@ -15,6 +15,7 @@ SRCS =      constants.f90 \
 			surfaces.f90 \
 			lens.f90 \
 			sourceMod.f90 \
+			setupMod.f90 \
 			main.f90 
 			
 OBJECTS = $(SRCS:.f90=.o)
@@ -36,4 +37,4 @@ $(PROGRAM): $(OBJECTS)
 .PHONY: clean
 
 clean:
-	rm -f *.o *.mod *.MOD mcgrid
+	rm -f *.o *.mod *.MOD raytrace

@@ -69,7 +69,7 @@ function run
   clear
   cd ../bin
 
-  ./raytrace
+  ./raytrace $file
 }
 
 #defaults
@@ -77,7 +77,7 @@ NUM_THREADS=32
 debug=0
 help=0
 make=0
-
+file="settings.params"
 set -e
 
 createdirs
@@ -95,6 +95,8 @@ while [ "$1" != "" ]; do
                                 ;;
         -d | --debug )          debug=1
                                 ;;
+        -f | --file )           file=$2
+                                ;;            
     esac
     shift
 done
