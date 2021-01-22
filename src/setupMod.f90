@@ -6,7 +6,7 @@ module setup
         
     real    :: alpha, ringwidth, wavelength, n
     integer :: nphotons
-    logical :: use_tracker, use_bottle, point_source, spot_source, image_source
+    logical :: use_tracker, use_bottle, point_source, spot_source, image_source, makeImages
     character(len=256) :: source_type
     character(len=:), allocatable :: folder
 
@@ -60,6 +60,7 @@ module setup
             read(u,*) n
             read(u,*) use_bottle
             read(u,*) use_tracker
+            read(u,*) makeImages
             if(nphotons > 10000 .and. use_tracker)error stop "Too many photons for tracker use!"
             read(u,*) source_type
 

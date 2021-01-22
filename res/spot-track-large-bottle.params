@@ -1,14 +1,14 @@
 0.5d-3                      # ring width. half beam size incident on axicon -> guess is 1mm in diameter
 785d-9                      # wavelength
-100000000                  # number of photons
+100                         # number of photons
 5                           # alpha. axicon opening angle in degrees
 1.45                        # axicon
 true                        # use bottle
-false                       # use tracker?
-true                        # make images?
-point                       # Light source for in the bottle [image, spot, point]
-clearBottle-large.params    # bottle
+true                        # use tracker?
+false                       # make images?
+spot                        # Light source for in the bottle [image, spot, point]
+clearBottle-large.params          # bottle
 planoConvex.params          # L2 lens
 achromaticDoublet.params    # L3 lens
 bessel-smear.dat            # image source
-settings                    # folder to save data to, must be in data folder
+large-bottle                # folder to save data to, must be in data folder

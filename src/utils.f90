@@ -29,7 +29,7 @@ module utils
                                    inverse       = '07', &
                                    strikethrough = '09'
 
-    !ANSI control characters                               
+    !ANSI control characters
     character(len=2), parameter :: start = achar(27)//'['
     character(len=3), parameter :: end = '[0m'
 
@@ -62,6 +62,18 @@ module utils
         module procedure swap_R8
     end interface swap
 
+    type :: pbar
+        integer :: iters, current_iter, time_remaing(3)
+        real    :: percentage, start_t, finish_t, average
+        logical :: first
+        contains
+            procedure :: progress => progress_sub
+    end type pbar
+
+    interface pbar
+        module procedure :: init_pbar_func
+    end interface pbar
+
     interface
         integer function c_chdir(path) bind(C,name="chdir")
             use iso_c_binding
@@ -70,12 +82,62 @@ module utils
     end interface
 
     private
-    public :: str, swap, colour, mem_free, chdir
+    public :: str, swap, colour, mem_free, chdir, pbar
     public :: bold, italic, underline, strikethrough, black, red, green, yellow, blue, magenta, cyan, white
     public :: black_b, red_b, green_b, yellow_b, blue_b, magenta_b, cyan_b, white_b
 
     contains
 
+        type(pbar) function init_pbar_func(n)
+
+            implicit none
+
+            integer, intent(IN) :: n
+
+            init_pbar_func%iters = n
+            init_pbar_func%current_iter = 1
+            init_pbar_func%time_remaing = 0 
+            init_pbar_func%percentage = 0.0 
+            init_pbar_func%start_t = 0.0
+            init_pbar_func%finish_t = 0.0  
+            init_pbar_func%average = 0.0
+            init_pbar_func%first = .true.
+
+        end function init_pbar_func
+
+        subroutine progress_sub(this, i)
+
+            implicit none
+
+            class(pbar) :: this
+            integer :: i, width
+            character(len=27) :: line
+            real :: time
+
+            if(.not. this%first)then
+                call cpu_time(this%finish_t)
+                this%average = this%average + (this%finish_t - this%start_t)
+                time = this%average / real(this%current_iter)
+                time = time * (this%iters - this%current_iter)
+                this%time_remaing(1) = floor(time / (60*60))
+                this%time_remaing(2) = floor(time / 60)
+                this%time_remaing(3) = int(mod(time, 60.) )
+            else    
+                this%first = .false.
+            end if
+
+            this%current_iter = i
+            this%percentage = 100.*real(this%current_iter) / real(this%iters)
+            width = int(this%percentage/ 4.)
+            line = "[" // repeat("#", width) // repeat(" ", 25 - width) // "]"
+
+            write(unit=6,fmt='(A)',advance="no") start//"1000D"//line//" "//str(int(this%percentage),3)//"%  "//&
+            str(this%time_remaing)
+
+            if(this%percentage >= 100.)write(unit=6,fmt='(A)')new_line("a")
+            call cpu_time(this%start_t)
+
+        end subroutine progress_sub
 
         subroutine chdir(path, error)
         ! taken from https://stackoverflow.com/a/26731789/6106938
@@ -206,8 +268,8 @@ module utils
             integer :: j
 
             do j = 1, size(i)
-                write(string,'(I100.1)') I(j)
-                str_iarray = str_iarray//' '//trim(adjustl(string))
+                write(string,'(I2.2)') I(j)
+                str_iarray = str_iarray//':'//trim(adjustl(string))
             end do
             
         end function str_iarray

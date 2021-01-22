@@ -3,7 +3,7 @@ program raytrace
     use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
     use source,       only : ring, point, emit_image, create_spot, init_emit_image
     use stackMod,     only : stack
-    use utils,        only : str
+    use utils,        only : str, pbar
     use vector_class, only : vector
     use setup
     use imageMod
@@ -15,7 +15,8 @@ program raytrace
     
     type(vector) :: pos, dir
     type(stack)  :: tracker
-    
+    type(pbar)   :: bar
+
     !lens and bottles
     type(plano_convex)       :: L2
     type(achromatic_doublet) :: L3
@@ -53,17 +54,20 @@ program raytrace
     if(use_tracker)then
         open(newunit=uring, file=folder//"blah-delete.dat")
     end if
+    
+    bar = pbar(nphotons)
 
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
-!$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source)&
+!$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source, filename, folder)&
+!$OMP& shared(source_type)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
-    do i = 1, 1
-
+    do i = 1, nphotons
+        if(mod(i, 1000000) == 0)call bar%progress(i)
         skip=.false.
-        if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
-        
+        ! if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
+
         call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
         if(use_tracker)call tracker%push(pos)
 
@@ -73,10 +77,7 @@ program raytrace
         
         if(skip)then
             rcount = rcount + 1_int64
-            call tracker%zero()
-            write(uring,*)" "
-            write(uring,*)" "
-            write(uring,*)" "
+            if(use_tracker)call tracker%write_empty(uring)
             cycle
         end if
 
@@ -86,10 +87,7 @@ program raytrace
 
         if(skip)then
             rcount = rcount + 1_int64
-            call tracker%zero()
-            write(uring,*)" "
-            write(uring,*)" "
-            write(uring,*)" "
+            if(use_tracker)call tracker%write_empty(uring)
             cycle
         end if
 
@@ -98,12 +96,7 @@ program raytrace
         pos = pos + dir * d
         if(use_tracker)call tracker%push(pos)
         call makeImage(image, pos, 1d-2, 1)
-        do while(.not. tracker%empty())
-            write(uring,"(3(F10.7,1x))")tracker%pop()
-        end do
-        write(uring,*)" "
-        write(uring,*)" "
-        write(uring,*)" "
+        if(use_tracker)call tracker%write(uring)
     end do
 !$OMP end do
 if(use_tracker)close(uring)
@@ -116,14 +109,19 @@ if(use_tracker)close(uring)
     ! angle = (13.*pi)/90.
     ! cosThetaMax = cos(angle)
     if(use_tracker)then
-        filename = trim(adjustl(source_type))//"_bottle_"//str(use_bottle)
+        filename = trim(adjustl(source_type))//"_track_bottle_"//str(use_bottle)//"_Ra_"// &
+                   str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
+                   str(bottle%centre%z,7)
+
         open(newunit=upoint, file=folder//filename//".dat")
+        deallocate(filename)
     end if
 
 !$omp do
     do i=1, nphotons
         skip=.false.
-        if(mod(i, 10000000) == 0)print*,i,"photons run from point"
+
+        ! if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
         if(image_source)then
             call emit_image(imgin, pos, dir, L2)
@@ -144,12 +142,7 @@ if(use_tracker)close(uring)
         
         if(skip)then
             pcount = pcount + 1_int64
-            if(use_tracker)then
-                call tracker%zero()
-                write(upoint,*)" "
-                write(upoint,*)" "
-                write(upoint,*)" "
-            end if
+            if(use_tracker)call tracker%write_empty(upoint)
             cycle
         end if
 
@@ -158,12 +151,7 @@ if(use_tracker)close(uring)
 
         if(skip)then
             pcount = pcount + 1_int64
-            if(use_tracker)then
-                call tracker%zero()
-                write(upoint,*)" "
-                write(upoint,*)" "
-                write(upoint,*)" "
-            end if
+            if(use_tracker)call tracker%write_empty(upoint)
             cycle
         end if
 
@@ -172,13 +160,8 @@ if(use_tracker)close(uring)
 
         pos = pos + dir * d
         if(use_tracker)call tracker%push(pos)
-        ! call makeImage(image, pos, 1d-2, 2)
-        do while(.not. tracker%empty())
-            write(upoint,"(3(F10.7,1x))")tracker%pop()
-        end do
-        write(upoint,*)" "
-        write(upoint,*)" "
-        write(upoint,*)" "
+        call makeImage(image, pos, 1d-2, 2)
+        if(use_tracker)call tracker%write(upoint)
     end do
 !$OMP end do
 !$omp end parallel
@@ -188,6 +171,11 @@ if(use_tracker)close(upoint)
 print"(A,1X,f8.2,A)","Ring  transmitted: ",100.*(1.-(rcount/(real(nphotons)))),"%"
 print"(A,1X,f8.2,A)","Point transmitted: ",100.*(1.-(pcount/(real(nphotons)))),"%"
 
-! call writeImage(image, "../test/img-emit-")
+if(makeImages)then
+    filename = trim(adjustl(source_type))//"_image_bottle_"//str(use_bottle)//"_Ra_"// &
+                   str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
+                   str(bottle%centre%z,7)
+    call writeImage(image, filename)
+end if
 
 end program raytrace

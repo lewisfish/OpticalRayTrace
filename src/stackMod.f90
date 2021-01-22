@@ -6,19 +6,50 @@ module stackMod
     
     type :: stack
         type(vector), allocatable :: data(:) ! stack
-        integer                  :: size = 0
+        integer                   :: size = 0
         contains
             procedure :: pop   => pop_fn
             procedure :: push  => push_sub
             procedure :: peek  => peek_fn
             procedure :: empty => empty_fn
             procedure :: zero  => zero_sub
+            procedure :: write => write_sub
+            procedure :: write_empty => write_empty_sub
     end type stack
 
     integer, parameter :: block_size = 4
 
     contains
-    
+
+    subroutine write_empty_sub(this, u)
+
+        implicit none
+        
+        class(stack) :: this
+        integer, intent(IN) :: u
+
+        call this%zero()
+        write(u,*)" "
+        write(u,*)" "
+        write(u,*)" "
+
+    end subroutine write_empty_sub
+
+    subroutine write_sub(this, u)
+
+        implicit none
+        
+        class(stack) :: this
+        integer, intent(IN) :: u
+
+        do while(.not. this%empty())
+            write(u,"(3(F10.7,1x))")this%pop()
+        end do
+        write(u,*)" "
+        write(u,*)" "
+        write(u,*)" "
+
+    end subroutine write_sub
 
     subroutine zero_sub(this)
         
