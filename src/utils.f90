@@ -82,11 +82,29 @@ module utils
     end interface
 
     private
-    public :: str, swap, colour, mem_free, chdir, pbar
+    public :: str, swap, colour, mem_free, chdir, pbar, sleep
     public :: bold, italic, underline, strikethrough, black, red, green, yellow, blue, magenta, cyan, white
     public :: black_b, red_b, green_b, yellow_b, blue_b, magenta_b, cyan_b, white_b
 
     contains
+
+        subroutine sleep(dt)
+            
+            implicit none
+            
+            real :: dt ! msec
+            integer :: t(8), s1, s2, ms1, ms2
+
+            call date_and_time(values=t)
+            ms1=(t(5)*3600 + t(6)*60 + t(7))*1000 + t(8)
+
+            do ! check time:
+              call date_and_time(values=t)
+              ms2 = (t(5)*3600 + t(6)*60 + t(7))*1000 + t(8)
+              if(ms2 - ms1 >= dt)exit
+            end do
+
+        end subroutine sleep
 
         type(pbar) function init_pbar_func(n)
 
@@ -269,7 +287,11 @@ module utils
 
             do j = 1, size(i)
                 write(string,'(I2.2)') I(j)
-                str_iarray = str_iarray//':'//trim(adjustl(string))
+                if(j == 1)then
+                    str_iarray = str_iarray//trim(adjustl(string))
+                else
+                    str_iarray = str_iarray//':'//trim(adjustl(string))
+                end if
             end do
             
         end function str_iarray
