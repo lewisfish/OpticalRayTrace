@@ -64,9 +64,12 @@ program raytrace
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
-        if(mod(i, 1000000) == 0)call bar%progress(i)
         skip=.false.
-        ! if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
+        ! if(mod(i, 1000000) == 0 .and. use_tracker)then
+        !     call bar%progress(i)
+        ! else
+        if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
+        ! end if
 
         call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
         if(use_tracker)call tracker%push(pos)
@@ -121,7 +124,7 @@ if(use_tracker)close(uring)
     do i=1, nphotons
         skip=.false.
 
-        ! if(mod(i, 10000000) == 0)print*,i,"photons run from point"
+        if(mod(i, 10000000) == 0)print*,i,"photons run from point"
 
         if(image_source)then
             call emit_image(imgin, pos, dir, L2)
@@ -175,7 +178,7 @@ if(makeImages)then
     filename = trim(adjustl(source_type))//"_image_bottle_"//str(use_bottle)//"_Ra_"// &
                    str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
                    str(bottle%centre%z,7)
-    call writeImage(image, filename)
+    call writeImage(image, folder//filename)
 end if
 
 end program raytrace

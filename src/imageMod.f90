@@ -40,17 +40,17 @@ module imageMod
 
         integer :: u
 
-        ! open(newunit=u,file=name//"ring.dat", access="stream", form="unformatted",status="replace")
-        ! write(u)real(image(:,:,1))
-        ! close(u)
+        open(newunit=u,file=name//"-ring.dat", access="stream", form="unformatted",status="replace")
+        write(u)real(image(:,:,1))
+        close(u)
 
-        open(newunit=u,file=name//"point.dat", access="stream", form="unformatted",status="replace")
+        open(newunit=u,file=name//"-point.dat", access="stream", form="unformatted",status="replace")
         write(u)real(image(:,:,2))
         close(u)
 
-        ! open(newunit=u,file=name//"total.dat", access="stream", form="unformatted",status="replace")
-        ! write(u)real(image(:,:,1)) + real(image(:,:,2))
-        ! close(u)
+        open(newunit=u,file=name//"-total.dat", access="stream", form="unformatted",status="replace")
+        write(u)real(image(:,:,1)) + real(image(:,:,2))
+        close(u)
 
 
     end subroutine writeImage
