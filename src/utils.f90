@@ -63,7 +63,7 @@ module utils
     end interface swap
 
     type :: pbar
-        integer :: iters, current_iter, time_remaing(3)
+        integer :: iters, current_iter, time_remaing(3), threads
         real    :: percentage, start_t, finish_t, average
         logical :: first
         contains
@@ -108,12 +108,18 @@ module utils
 
         type(pbar) function init_pbar_func(n)
 
+            use omp_lib
+
             implicit none
 
             integer, intent(IN) :: n
-
+#ifdef _OPENMP
+            init_pbar_func%threads = omp_get_max_threads()
+#else
+            init_pbar_func%threads = 1
+#endif
             init_pbar_func%iters = n
-            init_pbar_func%current_iter = 1
+            init_pbar_func%current_iter = 0
             init_pbar_func%time_remaing = 0 
             init_pbar_func%percentage = 0.0 
             init_pbar_func%start_t = 0.0
@@ -123,19 +129,19 @@ module utils
 
         end function init_pbar_func
 
-        subroutine progress_sub(this, i)
+        subroutine progress_sub(this)
 
             implicit none
 
             class(pbar) :: this
-            integer :: i, width
+            integer :: width
             character(len=27) :: line
             real :: time
-
+!$omp critical
             if(.not. this%first)then
                 call cpu_time(this%finish_t)
                 this%average = this%average + (this%finish_t - this%start_t)
-                time = this%average / real(this%current_iter)
+                time = this%average / real(this%threads * this%current_iter)
                 time = time * (this%iters - this%current_iter)
                 this%time_remaing(1) = floor(time / (60*60))
                 this%time_remaing(2) = floor(time / 60)
@@ -144,8 +150,10 @@ module utils
                 this%first = .false.
             end if
 
-            this%current_iter = i
+
+            this%current_iter = this%current_iter + 1
             this%percentage = 100.*real(this%current_iter) / real(this%iters)
+
             width = int(this%percentage/ 4.)
             line = "[" // repeat("#", width) // repeat(" ", 25 - width) // "]"
 
@@ -153,6 +161,7 @@ module utils
             str(this%time_remaing)
 
             if(this%percentage >= 100.)write(unit=6,fmt='(A)')new_line("a")
+!$omp end critical
             call cpu_time(this%start_t)
 
         end subroutine progress_sub

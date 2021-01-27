@@ -55,21 +55,19 @@ program raytrace
         open(newunit=uring, file=folder//"blah-delete.dat")
     end if
     
-    bar = pbar(nphotons)
+    bar = pbar(nphotons/ 1000000)
 
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
 !$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source, filename, folder)&
-!$OMP& shared(source_type)&
+!$OMP& shared(source_type, bar)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
         skip=.false.
-        ! if(mod(i, 1000000) == 0 .and. use_tracker)then
-        !     call bar%progress(i)
-        ! else
-        if(mod(i, 10000000) == 0)print*,i,"photons run from ring"
-        ! end if
+        if(mod(i, 1000000) == 0)then
+            call bar%progress()
+        end if
 
         call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
         if(use_tracker)call tracker%push(pos)
