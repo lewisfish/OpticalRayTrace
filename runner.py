@@ -85,7 +85,7 @@ def make_settings(user_dict: Dict, file: str) -> None:
 
 
 def create_spot_diags(bottles: List[List[str]]) -> None:
-    """Summary
+    """ -s setting
 
     Parameters
     ----------
@@ -108,7 +108,7 @@ def create_spot_diags(bottles: List[List[str]]) -> None:
 
 
 def create_point_images(bottles: List[List[str]]) -> None:
-    """Summary
+    """ -p setting
 
     Parameters
     ----------
@@ -130,10 +130,14 @@ def create_point_images(bottles: List[List[str]]) -> None:
 
 
 def offset_experiment() -> None:
+    """-o setting
+
+    """
 
     # default settings for image diagrams
-    image_dict = {"light_source": "point", "use_tracker": "false", "make_images": "true",
-                  "bottle_file": "clearBottle-large", "data_folder": "images-offset"}
+    image_dict = {"light_source": "point", "use_tracker": "false",
+                  "make_images": "true", "bottle_file": "clearBottle-large",
+                  "data_folder": "images-offset"}
 
     offsets = [i for i in range(4, 17, 2)]
 
@@ -142,11 +146,11 @@ def offset_experiment() -> None:
         image_dict["bottle_file"] = f"clearBottle-large_-{offset}mm.params"
         setup_f = f"test_{i}.params"
         make_settings(image_dict, setup_f)
-        # run_sim(setup_f, image_dict)
+        run_sim(setup_f, image_dict)
 
 
 def create_bessel_images(bottles: List[List[str]]) -> None:
-    """Summary
+    """-b option
 
     Parameters
     ----------
@@ -177,8 +181,7 @@ parser.add_argument("-b", "--bessel", action="store_true", default=False,
 parser.add_argument("-o", "--offset", action="store_true", default=False,
                     help="Run offset offset experiment on large bottle.")
 
-bottles = [["clearBottle-large.params", "true"], ["clearBottle-small.params", "true"],
-           ["clearBottle-ellipse.params", "true"], ["clearBottle-small.params", "false"]]
+bottles = [["clearBottle-small.params", "false"]]
 
 args = parser.parse_args()
 

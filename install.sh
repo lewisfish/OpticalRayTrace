@@ -66,7 +66,7 @@ function run
 
   mv raytrace "$bdirc" && echo " "&& echo "*****Install complete*****" && echo " "
 
-  clear
+  #clear
   cd ../bin
 
   ./raytrace $file

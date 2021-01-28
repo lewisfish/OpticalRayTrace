@@ -65,9 +65,8 @@ program raytrace
 !$OMP do
     do i = 1, nphotons
         skip=.false.
-        if(mod(i, 1000000) == 0)then
-            call bar%progress()
-        end if
+
+        if(mod(i, 1000000) == 0)call bar%progress()
 
         call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
         if(use_tracker)call tracker%push(pos)
@@ -100,6 +99,7 @@ program raytrace
         if(use_tracker)call tracker%write(uring)
     end do
 !$OMP end do
+
 if(use_tracker)close(uring)
 ! $OMP single
     ! wavelength = 843d-9
@@ -109,6 +109,8 @@ if(use_tracker)close(uring)
     !max angle for point source to lens
     ! angle = (13.*pi)/90.
     ! cosThetaMax = cos(angle)
+    bar = pbar(nphotons/ 1000000)
+
     if(use_tracker)then
         filename = trim(adjustl(source_type))//"_track_bottle_"//str(use_bottle)//"_Ra_"// &
                    str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
@@ -122,7 +124,7 @@ if(use_tracker)close(uring)
     do i=1, nphotons
         skip=.false.
 
-        if(mod(i, 10000000) == 0)print*,i,"photons run from point"
+        if(mod(i, 1000000) == 0)call bar%progress()
 
         if(image_source)then
             call emit_image(imgin, pos, dir, L2)

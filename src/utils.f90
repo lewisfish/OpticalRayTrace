@@ -63,8 +63,8 @@ module utils
     end interface swap
 
     type :: pbar
-        integer :: iters, current_iter, time_remaing(3), threads
-        real    :: percentage, start_t, finish_t, average
+        integer :: iters, current_iter, time_remaing(3), time_taken(3), threads
+        real    :: percentage, start_t, start_tt, finish_t, average
         logical :: first
         contains
             procedure :: progress => progress_sub
@@ -93,7 +93,7 @@ module utils
             implicit none
             
             real :: dt ! msec
-            integer :: t(8), s1, s2, ms1, ms2
+            integer :: t(8), ms1, ms2
 
             call date_and_time(values=t)
             ms1=(t(5)*3600 + t(6)*60 + t(7))*1000 + t(8)
@@ -121,8 +121,10 @@ module utils
             init_pbar_func%iters = n
             init_pbar_func%current_iter = 0
             init_pbar_func%time_remaing = 0 
+            init_pbar_func%time_taken = 0
             init_pbar_func%percentage = 0.0 
             init_pbar_func%start_t = 0.0
+            init_pbar_func%start_tt = 0.0
             init_pbar_func%finish_t = 0.0  
             init_pbar_func%average = 0.0
             init_pbar_func%first = .true.
@@ -145,22 +147,29 @@ module utils
                 time = time * (this%iters - this%current_iter)
                 this%time_remaing(1) = floor(time / (60*60))
                 this%time_remaing(2) = floor(time / 60)
-                this%time_remaing(3) = int(mod(time, 60.) )
+                this%time_remaing(3) = int(mod(time, 60.))
+                time = (this%finish_t - this%start_tt) / this%threads
+                this%time_taken(1) = floor(time / (60*60))
+                this%time_taken(2) = floor(time / 60)
+                this%time_taken(3) = int(mod(time, 60.))
             else    
                 this%first = .false.
+                call cpu_time(this%start_tt)
             end if
 
 
             this%current_iter = this%current_iter + 1
-            this%percentage = 100.*real(this%current_iter) / real(this%iters)
+            if(this%current_iter <= this%iters)then
+                this%percentage = 100.*real(this%current_iter) / real(this%iters)
 
-            width = int(this%percentage/ 4.)
-            line = "[" // repeat("#", width) // repeat(" ", 25 - width) // "]"
+                width = int(this%percentage/ 4.)
+                line = "[" // repeat("#", width) // repeat(" ", 25 - width) // "]"
 
-            write(unit=6,fmt='(A)',advance="no") start//"1000D"//line//" "//str(int(this%percentage),3)//"%  "//&
-            str(this%time_remaing)
+                write(unit=6,fmt='(A)',advance="no") start//"1000D"//line//" "//str(int(this%percentage),3)//"%  ["//&
+                str(this%time_taken)//"<"//str(this%time_remaing)//"]"
 
-            if(this%percentage >= 100.)write(unit=6,fmt='(A)')new_line("a")
+                if(this%percentage >= 100.)write(unit=6,fmt='(A)')new_line("a")
+            end if
 !$omp end critical
             call cpu_time(this%start_t)
 
