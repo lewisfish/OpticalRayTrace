@@ -175,6 +175,24 @@ module utils
 
         end subroutine progress_sub
 
+
+        subroutine get_terminal_size(cols, rows)
+            
+            implicit none
+
+            integer, intent(OUT) :: cols, rows
+            integer :: u
+            
+            call execute_command_line("stty > tmpfile")
+            
+            open(newuint=u, file="tmpfile", action="read")
+            read(u, *)cols, rows
+            close(u)
+            call execute_command_line("rm tmpfile")
+
+        end subroutine get_terminal_size
+
+
         subroutine chdir(path, error)
         ! taken from https://stackoverflow.com/a/26731789/6106938
             use iso_c_binding

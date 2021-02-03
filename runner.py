@@ -54,6 +54,7 @@ def make_settings(user_dict: Dict, file: str) -> None:
                 "use_tracker": "false",
                 "make_images": "false",
                 "light_source": "point",
+                "iris": "none",
                 "bottle_file": "clearBottle-large.params",
                 "L2_file": "planoConvex.params",
                 "L3_file": "achromaticDoublet.params",
@@ -74,7 +75,7 @@ def make_settings(user_dict: Dict, file: str) -> None:
     for key in defaults:
         if key == "wavelength":
             defaults[key] = str(defaults[key]).replace("e", "d")
-        elif key in ["use_bottle", "use_tracker", "make_images"]:
+        elif key in ["use_bottle", "use_tracker", "make_images", "iris"]:
             defaults[key] = str(defaults[key]).lower()
 
     # write out setting file
@@ -129,6 +130,31 @@ def create_point_images(bottles: List[List[str]]) -> None:
         run_sim(setup_f, image_dict)
 
 
+def iris_experiment(bottles: List[List[str]]) -> None:
+    """ -i setting
+
+    Parameters
+    ----------
+    bottles : List[List[str]]
+        list of settings files for which bottle to use in sim.
+    """
+
+    # default settings for image diagrams
+    image_dict = {"light_source": "point", "use_tracker": "false", "make_images": "true",
+                  "bottle_file": "clearBottle-small.params", "data_folder": "iris"}
+
+    irises = ["before", "after", "none"]
+    # run sims
+    for i, setting in enumerate(bottles):
+        for j in range(3):
+            image_dict["bottle_file"] = setting[0]
+            image_dict["use_bottle"] = setting[1]
+            image_dict["iris"] = irises[j]
+            setup_f = f"test_{i}.params"
+            make_settings(image_dict, setup_f)
+            run_sim(setup_f, image_dict)
+
+
 def offset_experiment() -> None:
     """-o setting
 
@@ -179,17 +205,24 @@ parser.add_argument("-p", "--point", action="store_true", default=False,
 parser.add_argument("-b", "--bessel", action="store_true", default=False,
                     help="Create bessel/ring diagrams.")
 parser.add_argument("-o", "--offset", action="store_true", default=False,
-                    help="Run offset offset experiment on large bottle.")
+                    help="Run offset experiment on large bottle.")
+parser.add_argument("-i", "--iris", action="store_true", default=False,
+                    help="Run iris experiment on bottles.")
+parser.add_argument("-a", "-all", action="store_true", default=False,
+                    help="Run all experiments.")
 
-bottles = [["clearBottle-small.params", "false"]]
+bottles = [["clearBottle-large.params", "true"], ["clearBottle-small.params", "true"],
+           ["clearBottle-ellipse.params", "true"], ["clearBottle-small.params", "false"]]
 
 args = parser.parse_args()
 
-if args.bessel:
+if args.bessel or args.all:
     create_bessel_images(bottles)
-if args.point:
+if args.point or args.all:
     create_point_images(bottles)
-if args.spot:
+if args.spot or args.all:
     create_spot_diags(bottles)
-if args.offset:
+if args.offset or args.all:
     offset_experiment()
+if args.iris or args.all:
+    iris_experiment(bottles)

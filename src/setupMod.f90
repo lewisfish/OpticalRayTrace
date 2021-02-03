@@ -6,7 +6,7 @@ module setup
         
     real    :: alpha, ringwidth, wavelength, n
     integer :: nphotons
-    logical :: use_tracker, use_bottle, point_source, spot_source, image_source, makeImages
+    logical :: use_tracker, use_bottle, point_source, spot_source, image_source, makeImages, iris(2)
     character(len=256) :: source_type
     character(len=:), allocatable :: folder
 
@@ -39,7 +39,7 @@ module setup
         integer,                  intent(OUT) :: nphotonsLocal, image(:, :)
 
         integer            :: i, u, io
-        character(len=256) :: arg, filename
+        character(len=256) :: arg, filename, iristmp
 
         point_source = .false.
         spot_source  = .false.
@@ -72,6 +72,17 @@ module setup
                 point_source = .true.        
             else
                 error stop "No such source type!"
+            end if
+            read(u,*)iristmp
+
+            if(trim(iristmp) == "before")then
+                iris = [.true., .false.]
+            elseif(trim(iristmp) == "after")then
+                iris = [.false., .true.]
+            elseif(trim(iristmp) == "none")then
+                iris = [.false., .false.]
+            else
+                error stop "No such iris position!"
             end if
 
             !read in params files

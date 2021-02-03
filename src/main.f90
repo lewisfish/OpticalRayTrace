@@ -60,7 +60,7 @@ program raytrace
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
 !$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source, filename, folder)&
-!$OMP& shared(source_type, bar)&
+!$OMP& shared(source_type, bar, iris)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
@@ -82,7 +82,7 @@ program raytrace
         end if
 
         !propagate through lens 3
-        call L3%forward(pos, dir, tracker, skip)
+        call L3%forward(pos, dir, iris, tracker, skip)
         if(use_tracker)call tracker%push(pos)
 
         if(skip)then
@@ -149,7 +149,7 @@ if(use_tracker)close(uring)
             cycle
         end if
 
-        call L3%forward(pos, dir, tracker, skip)
+        call L3%forward(pos, dir, iris, tracker, skip)
         if(use_tracker)call tracker%push(pos)
 
         if(skip)then

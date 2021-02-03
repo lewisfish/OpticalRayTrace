@@ -340,7 +340,7 @@ module lensMod
     end subroutine plano_backward_sub
 
 
-    subroutine doublet_forward_sub(this, pos, dir, u, skip)
+    subroutine doublet_forward_sub(this, pos, dir, iris, u, skip)
 
         use stackMod, only : stack
 
@@ -350,27 +350,30 @@ module lensMod
 
         type(vector), intent(INOUT) :: pos, dir
         type(stack),  intent(INOUT) :: u
+        logical,      intent(IN)    :: iris(2)
         logical,      intent(OUT)   :: skip
 
-        type(vector) :: normal
+        type(vector) :: normal, origpos
         logical      :: flag
         real         :: t, r
 
         skip = .false.
 
-        ! origpos = pos
+        if(iris(0))then
+            origpos = pos
 
-        ! d = ((this%centre1%z - this%r1) - pos%z) / dir%z
-        ! pos = pos + dir * d
+            t = ((this%centre1%z - this%r1 - 1d-3) - pos%z) / dir%z
+            pos = pos + dir * t
 
-        ! ! make sure no rays get propagated that are outside lens radius
-        ! ! this can double as an Iris
-        ! r = sqrt(pos%x**2 + pos%y**2)
-        ! if(r > this%radius*(1./1.))then
-        !     skip=.true.
-        !     return
-        ! end if
-        ! pos = origpos
+            ! make sure no rays get propagated that are outside lens radius
+            ! this can double as an Iris
+            r = sqrt(pos%x**2 + pos%y**2)
+            if(r > this%radius*(1./8.))then
+                skip=.true.
+                return
+            end if
+            pos = origpos
+        end if
 
         !first sphere
         flag = intersect_sphere(pos, dir, t, this%centre1, this%R1)
@@ -397,9 +400,7 @@ module lensMod
             return
         end if
 
-
         ! call u%push(pos)
-
 
         !second sphere
         flag = intersect_sphere(pos, dir, t, this%centre2, this%R2)
@@ -439,18 +440,19 @@ module lensMod
 
 
         ! call u%push(pos)
-
-        ! origpos = pos
-
-        ! d = ((this%centre3%z + this%r3) - pos%z) / dir%z
-        ! pos = pos + dir * d
-
-        ! r = sqrt(pos%x**2 + pos%y**2)
-        ! if(r > this%radius*(1./1.))then
-        !     skip=.true.
-        !     return
-        ! end if
-        ! pos = origpos
+        if(iris(2))then
+            origpos = pos
+    
+            t = ((this%centre3%z + this%r3+1d-3) - pos%z) / dir%z
+            pos = pos + dir * t
+    
+            r = sqrt(pos%x**2 + pos%y**2)
+            if(r > this%radius*(1./6.))then
+                skip=.true.
+                return
+            end if
+            pos = origpos
+        end if
     end subroutine doublet_forward_sub
 
     real function Sellmeier(wave, b1, b2, b3, c1, c2, c3)
