@@ -210,6 +210,9 @@ module source
         read(u)imgout
         close(u)
 
+        ! array written out in wrong fashion
+        imgout = transpose(imgout)
+
         !normalise
         tot = sum(imgout)
         imgin = 0

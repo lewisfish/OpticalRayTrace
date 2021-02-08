@@ -185,7 +185,7 @@ module utils
             
             call execute_command_line("stty > tmpfile")
             
-            open(newuint=u, file="tmpfile", action="read")
+            open(newunit=u, file="tmpfile", action="read")
             read(u, *)cols, rows
             close(u)
             call execute_command_line("rm tmpfile")

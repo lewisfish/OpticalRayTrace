@@ -4,6 +4,23 @@ import sys
 from typing import Dict, List
 
 
+def save_settings(file: str, place: str):
+    """Save a record of the settings file to the data folder of
+       current experiment.
+
+    Parameters
+    ----------
+    file : str
+        settings file to copy and rename.
+    place : str
+        Place to copy settings file to.
+    """
+
+    command = f"cp {file} data/{place}/settings.params"
+    command = command.split()
+    subprocess.run(command)
+
+
 def run_sim(settings_file: str, settings_dict: Dict) -> None:
     """Summary
 
@@ -55,6 +72,7 @@ def make_settings(user_dict: Dict, file: str) -> None:
                 "make_images": "false",
                 "light_source": "point",
                 "iris": "none",
+                "iris_size": 1.0,  # factor of lens radius
                 "bottle_file": "clearBottle-large.params",
                 "L2_file": "planoConvex.params",
                 "L3_file": "achromaticDoublet.params",
@@ -82,6 +100,9 @@ def make_settings(user_dict: Dict, file: str) -> None:
     with open("res/" + file, "w") as f:
         for key in defaults:
             f.write(str(defaults[key]) + " "*(35 - len(str(defaults[key]))) + "# " + key + "\n")
+
+    save_settings("res/" + file, defaults["data_folder"])
+
     return defaults
 
 
@@ -144,15 +165,18 @@ def iris_experiment(bottles: List[List[str]]) -> None:
                   "bottle_file": "clearBottle-small.params", "data_folder": "iris"}
 
     irises = ["before", "after", "none"]
+    sizes = [1.0, 0.8, 0.6, 0.4, 0.2]
     # run sims
     for i, setting in enumerate(bottles):
-        for j in range(3):
-            image_dict["bottle_file"] = setting[0]
-            image_dict["use_bottle"] = setting[1]
-            image_dict["iris"] = irises[j]
-            setup_f = f"test_{i}.params"
-            make_settings(image_dict, setup_f)
-            run_sim(setup_f, image_dict)
+        for iris in irises:
+            for size in sizes:
+                image_dict["bottle_file"] = setting[0]
+                image_dict["use_bottle"] = setting[1]
+                image_dict["iris"] = iris
+                image_dict["iris_size"] = size
+                setup_f = f"test_{i}.params"
+                make_settings(image_dict, setup_f)
+                run_sim(setup_f, image_dict)
 
 
 def offset_experiment() -> None:
@@ -195,6 +219,18 @@ def create_bessel_images(bottles: List[List[str]]) -> None:
         setup_f = f"test_{i}.params"
         make_settings(image_dict, setup_f)
         run_sim(setup_f, image_dict)
+
+
+def lens_experiment() -> None:
+    pass
+
+
+def bottle_size_experiment() -> None:
+    pass
+
+
+def bessel_params_experiment() -> None:
+    pass
 
 
 parser = argparse.ArgumentParser(usage="%(prog)s [OPTION]", description="")

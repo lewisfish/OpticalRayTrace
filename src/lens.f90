@@ -340,7 +340,7 @@ module lensMod
     end subroutine plano_backward_sub
 
 
-    subroutine doublet_forward_sub(this, pos, dir, iris, u, skip)
+    subroutine doublet_forward_sub(this, pos, dir, iris, iris_radius, u, skip)
 
         use stackMod, only : stack
 
@@ -351,6 +351,7 @@ module lensMod
         type(vector), intent(INOUT) :: pos, dir
         type(stack),  intent(INOUT) :: u
         logical,      intent(IN)    :: iris(2)
+        real,         intent(IN)    :: iris_radius
         logical,      intent(OUT)   :: skip
 
         type(vector) :: normal, origpos
@@ -359,7 +360,7 @@ module lensMod
 
         skip = .false.
 
-        if(iris(0))then
+        if(iris(1))then
             origpos = pos
 
             t = ((this%centre1%z - this%r1 - 1d-3) - pos%z) / dir%z
@@ -368,7 +369,7 @@ module lensMod
             ! make sure no rays get propagated that are outside lens radius
             ! this can double as an Iris
             r = sqrt(pos%x**2 + pos%y**2)
-            if(r > this%radius*(1./8.))then
+            if(r > this%radius*iris_radius)then
                 skip=.true.
                 return
             end if
@@ -385,7 +386,7 @@ module lensMod
         ! make sure no rays get propagated that are outside lens radius
         ! this can double as an Iris
         r = sqrt(pos%x**2 + pos%y**2)
-        if(r > (this%radius*(1.)))then
+        if(r > (this%radius*1.))then
             skip=.true.
             return
         end if
@@ -447,7 +448,7 @@ module lensMod
             pos = pos + dir * t
     
             r = sqrt(pos%x**2 + pos%y**2)
-            if(r > this%radius*(1./6.))then
+            if(r > this%radius*iris_radius)then
                 skip=.true.
                 return
             end if

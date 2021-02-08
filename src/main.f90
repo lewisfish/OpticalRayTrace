@@ -36,6 +36,10 @@ program raytrace
 
     call setup_sim(L2, L3, bottle, imgin, nphotonsLocal)
 
+    filename = trim(adjustl(source_type))//"_track_bottle_"//str(use_bottle)//"_Ra_"// &
+                    str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
+                    str(bottle%centre%z,7)
+
     !max angle for point source to lens
     angle = atan(L2%radius / L2%fb)
     cosThetaMax = cos(angle)
@@ -52,7 +56,7 @@ program raytrace
     r1 = r1**2
 
     if(use_tracker)then
-        open(newunit=uring, file=folder//"blah-delete.dat")
+        open(newunit=uring, file=folder//filename//"_ringtrace.dat")
     end if
     
     bar = pbar(nphotons/ 1000000)
@@ -60,7 +64,7 @@ program raytrace
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
 !$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source, filename, folder)&
-!$OMP& shared(source_type, bar, iris)&
+!$OMP& shared(source_type, bar, iris, iris_radius)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
@@ -82,7 +86,7 @@ program raytrace
         end if
 
         !propagate through lens 3
-        call L3%forward(pos, dir, iris, tracker, skip)
+        call L3%forward(pos, dir, iris, iris_radius, tracker, skip)
         if(use_tracker)call tracker%push(pos)
 
         if(skip)then
@@ -112,11 +116,7 @@ if(use_tracker)close(uring)
     bar = pbar(nphotons/ 1000000)
 
     if(use_tracker)then
-        filename = trim(adjustl(source_type))//"_track_bottle_"//str(use_bottle)//"_Ra_"// &
-                   str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
-                   str(bottle%centre%z,7)
-
-        open(newunit=upoint, file=folder//filename//".dat")
+        open(newunit=upoint, file=folder//filename//"pointtrace.dat")
         deallocate(filename)
     end if
 
@@ -149,7 +149,7 @@ if(use_tracker)close(uring)
             cycle
         end if
 
-        call L3%forward(pos, dir, iris, tracker, skip)
+        call L3%forward(pos, dir, iris, iris_radius, tracker, skip)
         if(use_tracker)call tracker%push(pos)
 
         if(skip)then
@@ -175,10 +175,8 @@ print"(A,1X,f8.2,A)","Ring  transmitted: ",100.*(1.-(rcount/(real(nphotons)))),"
 print"(A,1X,f8.2,A)","Point transmitted: ",100.*(1.-(pcount/(real(nphotons)))),"%"
 
 if(makeImages)then
-    filename = trim(adjustl(source_type))//"_image_bottle_"//str(use_bottle)//"_Ra_"// &
-                   str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
-                   str(bottle%centre%z,7)
-    call writeImage(image, folder//filename)
+
+    call writeImage(image, folder//filename//"_image")
 end if
 
 end program raytrace

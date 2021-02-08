@@ -4,7 +4,7 @@ module setup
 
     implicit none
         
-    real    :: alpha, ringwidth, wavelength, n
+    real    :: alpha, ringwidth, wavelength, n, iris_radius
     integer :: nphotons
     logical :: use_tracker, use_bottle, point_source, spot_source, image_source, makeImages, iris(2)
     character(len=256) :: source_type
@@ -74,6 +74,7 @@ module setup
                 error stop "No such source type!"
             end if
             read(u,*)iristmp
+            read(u,*)iris_radius
 
             if(trim(iristmp) == "before")then
                 iris = [.true., .false.]
