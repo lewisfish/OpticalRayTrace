@@ -36,15 +36,19 @@ program raytrace
 
     call setup_sim(L2, L3, bottle, imgin, nphotonsLocal)
 
-    filename = trim(adjustl(source_type))//"_track_bottle_"//str(use_bottle)//"_Ra_"// &
+    filename = trim(adjustl(source_type))//"_bottle_"//str(use_bottle)//"_Ra_"// &
                     str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
-                    str(bottle%centre%z,7)
+                    str(bottle%centre%z,7)//"_"//str(iris)//"_"//str(iris_radius, 3)//"_L2f_"//str(L2%f,6)//"_L3f_"//str(L3%f,6)
 
     !max angle for point source to lens
     angle = atan(L2%radius / L2%fb)
     cosThetaMax = cos(angle)
 
-    if(l2%fb <= bottle%radiusa + bottle%centre%z)error stop "Bottle offset too large!"
+    if(l2%fb <= bottle%radiusa + bottle%centre%z)then
+        print*,"Bottle offset too large! Adjusting so that there is a minimum of 2mm offset from lens."
+        bottle%centre%z = L2%fb - bottle%radiusa - 2d-3
+        print*,"Now bottle set at z position:",bottle%centre%z
+    end if
     ! distance to surface of bottle
     distance = L2%fb - (bottle%radiusa - bottle%centre%z)
     !https://en.wikipedia.org/wiki/Axicon#/media/File:Erzeugen_von_Besselstrahlen_durch_ein_Axicon.png
@@ -56,7 +60,7 @@ program raytrace
     r1 = r1**2
 
     if(use_tracker)then
-        open(newunit=uring, file=folder//filename//"_ringtrace.dat")
+        open(newunit=uring, file=folder//filename//"-ringtrace.dat")
     end if
     
     bar = pbar(nphotons/ 1000000)
@@ -96,7 +100,8 @@ program raytrace
         end if
 
         !move to image plane
-        d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
+        d = ((2.*(L2%fb + L3%fb) + L2%thickness + L3%thickness) - pos%z) / dir%z
+        ! d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
         pos = pos + dir * d
         if(use_tracker)call tracker%push(pos)
         call makeImage(image, pos, 1d-2, 1)
@@ -116,7 +121,7 @@ if(use_tracker)close(uring)
     bar = pbar(nphotons/ 1000000)
 
     if(use_tracker)then
-        open(newunit=upoint, file=folder//filename//"pointtrace.dat")
+        open(newunit=upoint, file=folder//filename//"-pointtrace.dat")
         deallocate(filename)
     end if
 
@@ -159,7 +164,7 @@ if(use_tracker)close(uring)
         end if
 
         !move to image plane
-        d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
+        d = ((2.*(L2%fb + L3%fb) + L2%thickness + L3%thickness) - pos%z) / dir%z
 
         pos = pos + dir * d
         if(use_tracker)call tracker%push(pos)
@@ -171,11 +176,18 @@ if(use_tracker)close(uring)
 
 if(use_tracker)close(upoint)
 
+open(newunit=upoint, file=folder//"trans-stats.dat", position="append")
+write(upoint,*)100.*(1.-(rcount/(real(nphotons)))),",", 100.*(1.-(pcount/(real(nphotons)))),",", L2%f,",",&
+          L3%f,",", use_bottle,",", bottle%radiusa,",", bottle%radiusb
+
+! write(upoint,*)100.*(1.-(rcount/(real(nphotons)))),",", 100.*(1.-(pcount/(real(nphotons)))),",", iris,",",&
+          ! iris_radius,",", use_bottle,",", bottle%radiusa,",", bottle%radiusb
+close(upoint)
+
 print"(A,1X,f8.2,A)","Ring  transmitted: ",100.*(1.-(rcount/(real(nphotons)))),"%"
 print"(A,1X,f8.2,A)","Point transmitted: ",100.*(1.-(pcount/(real(nphotons)))),"%"
 
 if(makeImages)then
-
     call writeImage(image, folder//filename//"_image")
 end if
 

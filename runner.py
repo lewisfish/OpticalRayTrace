@@ -174,9 +174,12 @@ def iris_experiment(bottles: List[List[str]]) -> None:
                 image_dict["use_bottle"] = setting[1]
                 image_dict["iris"] = iris
                 image_dict["iris_size"] = size
-                setup_f = f"test_{i}.params"
+                setup_f = f"test_{i}_{iris}_{size}.params"
                 make_settings(image_dict, setup_f)
                 run_sim(setup_f, image_dict)
+                if iris == "none":
+                    # only need to do one size of iris for no iris as it dosent make any sense really...
+                    break
 
 
 def offset_experiment() -> None:
@@ -221,15 +224,41 @@ def create_bessel_images(bottles: List[List[str]]) -> None:
         run_sim(setup_f, image_dict)
 
 
-def lens_experiment() -> None:
-    pass
+def lens_experiment(bottles: List[List[str]]) -> None:
+    """-l setting
 
+    Parameters
+    ----------
+    bottles : List[List[str]]
+        Description
 
-def bottle_size_experiment() -> None:
-    pass
+    """
+
+    # default settings for image diagrams
+    image_dict = {"light_source": "point", "use_tracker": "false",
+                  "make_images": "false", "bottle_file": "clearBottle-large",
+                  "data_folder": "images-lens"}
+
+    # L2 focal lengths
+    L2_flengths = ["59.8", "49.8", "39.9", "34.9", "29.9"]
+    # L3 focal lengths
+    L3_flengths = ["40.0", "45.0", "50.0", "60.0", "75.0"]
+
+    # run sims
+    for k, L3focal in enumerate(L3_flengths):
+        image_dict["L3_file"] = f"achromaticDoublet-f{L3focal}mm.params"
+        for j, L2focal in enumerate(L2_flengths):
+            image_dict["L2_file"] = f"planoConvex-f{L2focal}mm.params"
+            for i, bottle in enumerate(bottles):
+                image_dict["bottle_file"] = bottle[0]
+                image_dict["use_bottle"] = bottle[1]
+                setup_f = f"test_{i}_{j}_{k}.params"
+                make_settings(image_dict, setup_f)
+                run_sim(setup_f, image_dict)
 
 
 def bessel_params_experiment() -> None:
+    # TODO once bpm.py is fixed
     pass
 
 
@@ -244,8 +273,14 @@ parser.add_argument("-o", "--offset", action="store_true", default=False,
                     help="Run offset experiment on large bottle.")
 parser.add_argument("-i", "--iris", action="store_true", default=False,
                     help="Run iris experiment on bottles.")
-parser.add_argument("-a", "-all", action="store_true", default=False,
+parser.add_argument("-l", "--lens", action="store_true", default=False,
+                    help="Run lens experiments.")
+parser.add_argument("-bp", "--bessel_params", action="store_true", default=False,
+                    help="Run bessel parameters experiment.")
+
+parser.add_argument("-a", "--all", action="store_true", default=False,
                     help="Run all experiments.")
+
 
 bottles = [["clearBottle-large.params", "true"], ["clearBottle-small.params", "true"],
            ["clearBottle-ellipse.params", "true"], ["clearBottle-small.params", "false"]]
@@ -262,3 +297,7 @@ if args.offset or args.all:
     offset_experiment()
 if args.iris or args.all:
     iris_experiment(bottles)
+if args.lens or args.all:
+    bottles = [["clearBottle-large.params", "true"], ["clearBottle-small.params", "true"],
+               ["clearBottle-ellipse.params", "true"]]
+    lens_experiment(bottles)

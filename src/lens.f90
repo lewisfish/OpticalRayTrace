@@ -363,7 +363,7 @@ module lensMod
         if(iris(1))then
             origpos = pos
 
-            t = ((this%centre1%z - this%r1 - 1d-3) - pos%z) / dir%z
+            t = ((this%centre1%z - this%r1) - pos%z) / dir%z
             pos = pos + dir * t
 
             ! make sure no rays get propagated that are outside lens radius

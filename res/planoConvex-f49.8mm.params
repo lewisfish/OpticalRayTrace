@@ -1,8 +1,8 @@
-6.40d-3        thickness mm
-20.6d-3        curve_radius mm
+5.30d-3        thickness mm
+25.8d-3        curve_radius mm
 25.4d-3        diameter mm
-39.9d-3        f mm
-35.7d-3        fb mm
+49.8d-3        f mm
+46.3d-3        fb mm
 1.0            n1 air
 1.03961212      b1 schott bk7 glass
 0.231792344     b2

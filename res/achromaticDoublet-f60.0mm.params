@@ -1,0 +1,21 @@
+6.0d-3          thickness1 mm
+1.7d-3          thickness2 mm
+39.48d-3        curve_radius1 mm
+33.00d-3        curve_radius2 mm
+165.20d-3       curve_radius3 mm
+25.4d-3         diameter mm
+60d-3           f mm
+55.8d-3           fb mm
+1.0d0           n1 !air n1
+1.14229781      b1 ! n-lak22 glass n2
+0.535138441     b2
+1.04088385      b3
+0.00585778594   c1
+0.0198546147    c2
+100.834017      c3
+1.72448482      b1 ! N-sf6 glass n3
+0.390104889     b2
+1.04572858      b3
+0.0134871947    c1
+0.0569318095    c2
+118.557185      c3 1.63847d0   n2 https://www.filmetrics.com/refractive-index-database/Schott+N-LAK221.77532d0   n3 !https://www.filmetrics.com/refractive-index-database/Schott+N-SF6

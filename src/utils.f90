@@ -414,7 +414,7 @@ module utils
 
             do i = 1, size(a)
                 write(string,'(L1)') a(i)
-                str_logicalarray = str_logicalarray//' '//trim(adjustl(string))
+                str_logicalarray = str_logicalarray//'_'//trim(adjustl(string))
             end do
 
         end function str_logicalarray
