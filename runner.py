@@ -3,6 +3,8 @@ import subprocess
 import sys
 from typing import Dict, List
 
+import numpy as np
+
 
 def save_settings(file: str, place: str):
     """Save a record of the settings file to the data folder of
@@ -42,7 +44,7 @@ def run_sim(settings_file: str, settings_dict: Dict) -> None:
     # run simulatrion
     command = f"./install.sh -n {ncores} -f {settings_file}"
     command = command.split(" ")
-    subprocess.run(command)
+    subprocess.run(command, check=True)
 
 
 def make_settings(user_dict: Dict, file: str) -> None:
@@ -64,18 +66,20 @@ def make_settings(user_dict: Dict, file: str) -> None:
     # default values
     defaults = {"ring_width": 0.5e-3,
                 "wavelength": "785d-9",
-                "nphotons": 2000000000,
+                "nphotons": 1000000000,
                 "alpha": 5.,
                 "n axicon": 1.45,
                 "use_bottle": "true",
                 "use_tracker": "false",
                 "make_images": "false",
+                "image_diameter": 1e-2,
+                "fibre_offset": 0.0,
                 "light_source": "point",
                 "iris": "none",
                 "iris_size": 1.0,  # factor of lens radius
                 "bottle_file": "clearBottle-large.params",
-                "L2_file": "planoConvex.params",
-                "L3_file": "achromaticDoublet.params",
+                "L2_file": "planoConvex-f39.9mm.params",
+                "L3_file": "achromaticDoublet-f50.0mm.params",
                 "image_source": "bessel-smear.dat",
                 "data_folder": "settings"}
 
@@ -91,7 +95,7 @@ def make_settings(user_dict: Dict, file: str) -> None:
     # convert e to d
     # lower case booleans
     for key in defaults:
-        if key == "wavelength":
+        if key == "wavelength" or key == "image_diameter":
             defaults[key] = str(defaults[key]).replace("e", "d")
         elif key in ["use_bottle", "use_tracker", "make_images", "iris"]:
             defaults[key] = str(defaults[key]).lower()
