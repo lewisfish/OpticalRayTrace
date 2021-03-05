@@ -4,7 +4,7 @@ module imageMod
 
     contains
 
-    subroutine makeImage(image, pos, diameter, layer)
+    subroutine makeImage(image, dir, pos, diameter, layer)
 
         use vector_class
 
@@ -13,11 +13,25 @@ module imageMod
         integer,      intent(INOUT) :: image(-200:200,-200:200, 2)
         integer,      intent(IN)    :: layer
         real,         intent(IN)    :: diameter
-        type(vector), intent(IN)    :: pos
+        type(vector), intent(IN)    :: pos, dir
 
-        real :: binwid
+        real :: binwid, angle, na, bottom, top
+        type(vector) :: n, d
         integer :: xp, yp
 
+        n = vector(0., 0., -1.)
+        n = n%magnitude()
+        d = dir%magnitude()
+        d = (-1.)*d
+
+        top = n .dot. d
+        bottom = sqrt(d .dot. d) * sqrt(n .dot. n)
+        angle = acos(top / bottom)
+        na = asin(0.22)
+
+        if(angle > na)then
+            return
+        end if
         binwid = diameter / 401.
 
         xp = floor(pos%x / binwid)
@@ -51,7 +65,6 @@ module imageMod
         open(newunit=u,file=name//"-total.dat", access="stream", form="unformatted",status="replace")
         write(u)real(image(:,:,1)) + real(image(:,:,2))
         close(u)
-
 
     end subroutine writeImage
 end module imageMod

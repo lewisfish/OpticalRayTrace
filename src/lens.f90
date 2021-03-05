@@ -194,13 +194,14 @@ module lensMod
             skip = .true.
             return
         end if
-        orig = pos
         pos = pos + t * dir
+        orig = pos
         ! call u%push(pos)
 
-        orig%z = pos%z
+        orig%x = this%centre%x
         normal = this%centre - orig
         normal = normal%magnitude()
+
         flag = .false.
         call reflect_refract(dir, normal, this%ncontents, this%nbottle, flag)
         if(flag)then
@@ -219,13 +220,12 @@ module lensMod
             return
         end if
 
-        orig = pos
         pos = pos + t * dir
+        orig = pos
         ! call u%push(pos)
+        orig%x = this%centre%x
 
-        orig%z = pos%z
         normal = this%centre - orig
-
         normal = normal%magnitude()
 
         flag = .false.
@@ -444,7 +444,7 @@ module lensMod
         if(iris(2))then
             origpos = pos
     
-            t = ((this%centre3%z + this%r3+1d-3) - pos%z) / dir%z
+            t = ((this%centre3%z + this%r3) - pos%z) / dir%z
             pos = pos + dir * t
     
             r = sqrt(pos%x**2 + pos%y**2)

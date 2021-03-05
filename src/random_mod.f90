@@ -3,9 +3,38 @@ module random
     implicit none
 
     private
-    public  :: ran2, ranu, rang
+    public  :: ran2, ranu, rang, init_rng
 
     contains
+
+        subroutine init_rng(input_seed)
+        ! initiate RNG state with reproducable state
+
+            implicit none
+            
+            integer, optional, intent(IN) :: input_seed
+
+            integer, allocatable :: seed(:)
+            integer              :: n, i
+            real                 :: a
+
+            call random_seed(size=n)
+            allocate(seed(n))
+            
+            if(present(input_seed))then
+                seed = input_seed
+            else
+                seed = 1234567
+            end if
+
+            call random_seed(put=seed)
+
+            !fast forward rng state 100 times to avoid any potential bad seeds
+            do i = 1, 100
+                a = ran2()
+            end do
+
+        end subroutine init_rng
 
         real function ran2()
         !wrapper for call random number
