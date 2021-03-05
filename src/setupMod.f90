@@ -4,10 +4,10 @@ module setup
 
     implicit none
         
-    real    :: alpha, ringwidth, wavelength, n, iris_radius
+    real    :: alpha, ringwidth, wavelength, n, iris_radius, image_diameter, fibre_offset
     integer :: nphotons
     logical :: use_tracker, use_bottle, point_source, spot_source, image_source, makeImages, iris(2)
-    character(len=256) :: source_type
+    character(len=256) :: source_type, L2file, L3file
     character(len=:), allocatable :: folder
 
     contains
@@ -61,6 +61,8 @@ module setup
             read(u,*) use_bottle
             read(u,*) use_tracker
             read(u,*) makeImages
+            read(u,*) image_diameter
+            read(u,*) fibre_offset
             if(nphotons > 10000 .and. use_tracker)error stop "Too many photons for tracker use!"
             read(u,*) source_type
 
@@ -89,10 +91,10 @@ module setup
             !read in params files
             read(u,*) filename
             bottle = glass_bottle("../res/"//trim(filename), wavelength)
-            read(u,*) filename
-            L2 = plano_convex("../res/"//trim(filename), wavelength)
-            read(u,*) filename
-            L3 = achromatic_doublet("../res/"//trim(filename), wavelength, L2%fb, L2%thickness)
+            read(u,*) L2file
+            L2 = plano_convex("../res/"//trim(L2file), wavelength)
+            read(u,*) L3file
+            L3 = achromatic_doublet("../res/"//trim(L3file), wavelength, L2%fb, L2%thickness)
             read(u,*) filename
             call init_emit_image("../res/"//trim(filename), image, nphotons, nphotonsLocal)
             

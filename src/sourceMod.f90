@@ -40,6 +40,36 @@ module source
     end subroutine point
 
 
+    subroutine cross(pos, dir)
+    ! creates a cross for debugging purposes
+    !
+    !
+        use vector_class
+
+        implicit none
+        
+        type(vector), intent(OUT) :: pos, dir
+        real :: x, y, VorH
+
+        VorH = ran2()
+        if(VorH > 0.5)then
+            x = ranu(-.05d-2, .05d-2)
+            y = ranu(-.25d-2, .25d-2)
+        else
+            y = ranu(-.05d-2, .05d-2)
+            if(ran2() > 0.5)then
+                x = ranu(-.25d-2, -.05d-2)
+            else
+                x = ranu(.05d-2, .25d-2)
+            end if
+        end if
+
+
+        pos = vector(x, y, 0.)
+        dir  = vector(0., 0., 1.)
+
+    end subroutine cross
+
     subroutine create_spot(pos, dir, cosThetaMax, nrays, n)
 
         use vector_class

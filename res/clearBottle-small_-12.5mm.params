@@ -1,0 +1,12 @@
+2.10d-3         thickness mm
+17.5d-3         radius a mm in z direction
+17.5d-3         radius b mm in y direction. if radius a != radius b then bottle is elliptical
+0.0             x
+0.0             y bottle position, centre of
+-0.0125         z
+1.5130          b1 glass dispersion coiefficents (soda-lime clear) https://refractiveindex.info/?shelf=glass&book=soda-lime&page=Rubin-clear
+0.003169        b2
+0.003962        b3
+1.35265         c1 bottle contents coifficents (alcohol) https://refractiveindex.info/?shelf=organic&book=ethanol&page=Rheims
+0.00306         c2
+0.00002         c3

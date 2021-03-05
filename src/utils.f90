@@ -137,7 +137,7 @@ module utils
 
             class(pbar) :: this
             integer :: width
-            character(len=27) :: line
+            character(len=52) :: line
             real :: time
 !$omp critical
             if(.not. this%first)then
@@ -162,8 +162,8 @@ module utils
             if(this%current_iter <= this%iters)then
                 this%percentage = 100.*real(this%current_iter) / real(this%iters)
 
-                width = int(this%percentage/ 4.)
-                line = "[" // repeat("#", width) // repeat(" ", 25 - width) // "]"
+                width = int(this%percentage/ 2.)
+                line = "[" // repeat("#", width) // repeat(" ", 50 - width) // "]"
 
                 write(unit=6,fmt='(A)',advance="no") start//"1000D"//line//" "//str(int(this%percentage),3)//"%  ["//&
                 str(this%time_taken)//"<"//str(this%time_remaing)//"]"
