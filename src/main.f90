@@ -74,6 +74,7 @@ program raytrace
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
 !$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source, filename, folder)&
 !$OMP& shared(source_type, bar, iris, iris_radius, image_diameter, fibre_offset, L2file, L3file)&
+!$OMP& shared(r12, r22, factor, sors_source, sors_spot_size, sors_offset)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
@@ -138,7 +139,7 @@ if(use_tracker)close(uring)
 
         if(image_source)then
             call emit_image(imgin, pos, dir, L2)
-        elseif(point_source)then
+        elseif(point_source .or. sors_source)then
             ! call cross(pos, dir)
             call point(pos, dir, cosThetaMax)
         elseif(spot_source)then

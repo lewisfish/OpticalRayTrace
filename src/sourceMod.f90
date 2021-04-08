@@ -2,7 +2,7 @@ module source
 
     use constants, only : Pi, twopi
     use lensMod,   only : plano_convex
-    use random,    only : ranu, ran2
+    use random,    only : ranu, ran2, rang
     use vector_class
 
     implicit none
@@ -38,6 +38,50 @@ module source
         pos = vector(0.d0, 0.d0, 0.d0)
 
     end subroutine point
+
+
+    subroutine point_on_bottle(pos, dir, cosThetaMax, bottle, sors_radius, spot_radius)
+    ! emit isotropically from a point
+    ! except bias towards lens
+        use vector_class
+        use surfaces, only : intersect_cylinder
+        use lensMod,     only : glass_bottle
+
+        implicit none
+
+        type(vector),       intent(OUT) :: pos, dir
+        real,               intent(IN)  :: cosThetaMax, sors_radius, spot_radius
+        type(glass_bottle), intent(IN)  :: bottle
+
+        real :: phi, cosp, cost, sinp, sint, nxp, nyp, nzp, ran, t, tmp1, tmp2
+        logical :: flag
+
+        phi = twopi * ran2()
+        cosp = cos(phi)
+        sinp = sin(phi)  
+        
+        ran = ran2()
+        !sample cone taken from pbrt
+        cost = (1.d0 - ran) + ran*cosThetaMax
+        sint = sqrt(1.d0 - cost**2)
+
+        nxp = sint * cosp
+        nyp = sint * sinp
+        nzp = cost
+
+        tmp1 = ranu(sors_radius-spot_radius, sors_radius+spot_radius)
+        tmp2 = ranu(sors_radius-spot_radius, sors_radius+spot_radius)
+        call rang(tmp1, tmp2, 0., 100d-6)
+
+        pos = vector(tmp1, tmp2, 1.d0)
+        dir = vector(0., 0., -1.)
+
+        flag = intersect_cylinder(pos, dir, t, bottle%centre, bottle%radiusa+bottle%thickness)
+        pos = pos + dir*t
+
+        dir = vector(nxp, nyp, nzp)
+
+    end subroutine point_on_bottle
 
 
     subroutine cross(pos, dir)

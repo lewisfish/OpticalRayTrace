@@ -1,18 +1,20 @@
 0.5d-3                      # ring width. half beam size incident on axicon -> guess is 1mm in diameter
 785d-9                      # wavelength
-100                   # number of photons
+100                    # number of photons
 5                           # alpha. axicon opening angle in degrees
 1.45                        # axicon
-true                        # use bottle
+true                       # use bottle
 true                       # use tracker?
 true                        # make images?
-1.d-2                      # image_diameter
+1.d-2                       # image_diameter
 0.0                         # fibre_offset
-point                       # Light source for in the bottle [image, spot, point]
+sors                       # Light source for in the bottle [image, spot, point, sors]
 none                      # iris position
 1.0                       # iris size as fraction of lens radius
 clearBottle-small_0.0mm.params    # bottle
 planoConvex-f39.9mm.params          # L2 lens
 achromaticDoublet-f40.0mm.params    # L3 lens
 bessel-normal.dat           # image source
-settings-testy                    # folder to save data to, must be in data folder
+settings-testysors                   # folder to save data to, must be in data folder
+1.5d-3                        # sors_offset
+1d-3                        # sors_spot_size
