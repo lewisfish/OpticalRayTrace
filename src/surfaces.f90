@@ -5,7 +5,7 @@ module surfaces
     implicit none
 
     private
-    public :: intersect_sphere, intersect_cylinder, intersect_ellipse
+    public :: intersect_sphere, intersect_cylinder, intersect_ellipse, intersect_cone
     public :: reflect_refract
 
     contains
@@ -135,6 +135,51 @@ module surfaces
         intersect_ellipse = .true.
         return
     end function intersect_ellipse
+
+
+    logical function intersect_cone(orig, dir, t, radius, height)
+    ! calculates where a line, with origin:orig and direction:dir hits a cone, radius:radius and height:height
+    ! returns true if intersection exists
+    ! returns t, the paramertised parameter of the line equation
+    ! adapted from scratchapixel and pbrt
+    ! need to check z height after moving ray
+    ! if not this is an infinte cone
+    ! cone lies height ways along z-axis
+
+        implicit none
+
+        type(vector), intent(IN)  :: orig, dir
+        real,         intent(IN)  :: radius, height
+        real,         intent(OUT) :: t
+
+        real         :: t0, t1, a, b, c, tmp, k
+
+
+        intersect_cone = .false.
+        k = radius / height
+        k = k**2
+
+        a = dir%x**2 + dir%y**2 - (k*dir%z**2)
+        b = 2.*((dir%x * orig%x) + (dir%y * orig%y) - (k*dir%z * (orig%z - height)))
+        c = orig%x**2 + orig%y**2 - (k*(orig%z - height)**2)
+
+        if(.not. solveQuadratic(a, b, c, t0, t1))return
+        if(t0 > t1)then
+            tmp = t1
+            t1 = t0
+            t0 = tmp
+        end if
+        if(t0 < 0.d0)then
+            t0 = t1
+            if(t0 < 0.)return
+        end if
+
+        t = t0
+
+        intersect_cone = .true.
+        return
+
+    end function intersect_cone
 
 
     logical function solveQuadratic(a, b, c, x0, x1)
