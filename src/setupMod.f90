@@ -62,9 +62,16 @@ module setup
             read(u,*) use_bottle
             read(u,*) use_tracker
             read(u,*) makeImages
+            if(nphotons > 10000 .and. use_tracker)error stop "Too many photons for tracker use!"
+            if(use_tracker .and. makeImages)then
+                print*,"***************"
+                print*,"Cannot track packets and make images!"
+                print*,"Deselecting makeImages"
+                print*,"***************"
+                makeImages = .false.
+            end if
             read(u,*) image_diameter
             read(u,*) fibre_offset
-            if(nphotons > 10000 .and. use_tracker)error stop "Too many photons for tracker use!"
             read(u,*) source_type
 
             if(trim(source_type) == "image")then

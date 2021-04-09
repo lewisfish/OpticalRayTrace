@@ -154,28 +154,28 @@ module source
     end subroutine create_spot
 
 
-    subroutine iSORS(pos, dir, bottle, seperation, ring)
+    subroutine iSORS(pos, dir, bottle, lens, seperation, beam_width, ring)
 
         use lensMod
 
         implicit none
 
+        type(plano_convex), intent(IN)  :: lens
         type(vector),       intent(OUT) :: pos, dir
         type(glass_bottle), intent(IN)  :: bottle
-        real,               intent(IN)  :: seperation
-        logical,            intent(IN) :: ring
+        real,               intent(IN)  :: seperation, beam_width
+        logical,            intent(IN)  :: ring
 
         logical :: flag, skip
-        real :: alpha, axicon_n, radius, height, k, beam_width, base_pos
-        real :: posx, posy, posz, rad1, rad2, t
-        type(vector) :: centre, normal
+        real :: alpha, axicon_n, radius, height, k, base_pos
+        real :: posx, posy, posz, rad1, rad2, t, dist, nxp, nyp, nzp, r, theta
+        type(vector) :: centre, normal, lenspoint
 
         axicon_n = 1.4
         radius = 12.7d-3
         height = 1.1d-3
         alpha = atan(height / radius)
         k = (radius / height)**2
-        beam_width = 0.5d-3
 
         base_pos = (seperation + beam_width) / tan(alpha * (axicon_n -1.))
         centre = vector(0., 0., 0.)
@@ -212,11 +212,30 @@ module source
                 pos = pos + t * dir
             else
                 call bottle%backward(pos, dir, skip)
-                t = (0.d0-pos%z) / dir%z
+                !move to middle of bottle
+                t = (bottle%z - pos%z) / dir%z
                 pos = pos + t*dir
-                print*,pos
             end if
         end if
+
+        if(ring)then
+            r = ranu(0., (lens%radius)**2)
+        else
+            r = ranu(0., (lens%radius+10d-3)**2)
+        end if
+        theta = ran2() * twopi
+        posx = sqrt(r) * cos(theta)
+        posy = sqrt(r) * sin(theta)
+        lenspoint = vector(posx, posy, lens%fb)
+
+        dist = sqrt((lenspoint%x - pos%x)**2 + (lenspoint%y - pos%y)**2 + (lenspoint%z - pos%z)**2)
+
+        nxp = (lenspoint%x - pos%x) / dist
+        nyp = (lenspoint%y - pos%y) / dist
+        nzp = (lenspoint%z - pos%z) / dist
+
+        dir = vector(nxp, nyp, nzp)
+        dir = dir%magnitude()
 
     end subroutine iSORS
 
@@ -251,10 +270,11 @@ module source
         else
             posz = bottleOffset + sqrt((bottleRadiusa)**2 - posy**2)
         end if
+
         pos = vector(posx, posy, posz)
 
         !create new z-axis
-        r = ranu(0., lens%radius**2)
+        r = ranu(0., (lens%radius+10d-3)**2)
         theta = ran2() * twopi
         posx = sqrt(r) * cos(theta)
         posy = sqrt(r) * sin(theta)

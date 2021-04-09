@@ -82,9 +82,9 @@ program raytrace
 
         if(mod(i, 1000000) == 0)call bar%progress()
 
-        call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
-        if(use_tracker)call tracker%push(pos)
-
+        if(isors_source)then
+            call iSORS(pos, dir, bottle, L2, isors_offset, ringWidth, .true.)
+            if(use_tracker)call tracker%push(pos)
         !propagate though lens 2
         call L2%forward(pos, dir, tracker, skip)
         if(use_tracker)call tracker%push(pos)
@@ -139,14 +139,15 @@ if(use_tracker)close(uring)
 
         if(image_source)then
             call emit_image(imgin, pos, dir, L2)
-        elseif(point_source .or. sors_source)then
+        elseif(point_source)then
             ! call cross(pos, dir)
             call point(pos, dir, cosThetaMax)
         elseif(spot_source)then
             call create_spot(pos, dir, cosThetaMax, nphotons, i)
+        elseif(isors_source)then
+            call iSORS(pos, dir, bottle, L2, isors_offset, ringWidth, .false.)
         end if
         if(use_tracker)call tracker%push(pos)
-
         if(use_bottle)then
             call bottle%forward(pos, dir, tracker, skip)
             if(use_tracker)call tracker%push(pos)
