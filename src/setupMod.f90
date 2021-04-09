@@ -4,9 +4,9 @@ module setup
 
     implicit none
         
-    real    :: alpha, ringwidth, wavelength, n, iris_radius, image_diameter, fibre_offset, sors_offset, sors_spot_size
+    real    :: alpha, ringwidth, wavelength, n, iris_radius, image_diameter, fibre_offset, isors_offset
     integer :: nphotons
-    logical :: use_tracker, use_bottle, point_source, spot_source, sors_source, image_source, makeImages, iris(2)
+    logical :: use_tracker, use_bottle, point_source, spot_source, isors_source, image_source, makeImages, iris(2)
     character(len=256) :: source_type, L2file, L3file
     character(len=:), allocatable :: folder
 
@@ -44,7 +44,7 @@ module setup
         point_source = .false.
         spot_source  = .false.
         image_source = .false.
-        sors_source  = .false.
+        isors_source  = .false.
 
         ! read in settings file from command line
         i = 1
@@ -73,8 +73,8 @@ module setup
                 spot_source = .true.
             elseif(trim(source_type) == "point")then
                 point_source = .true.
-            elseif(trim(source_type) == "sors")then
-                sors_source = .true.
+            elseif(trim(source_type) == "isors")then
+                isors_source = .true.
             else
                 error stop "No such source type!"
             end if
@@ -110,9 +110,8 @@ module setup
                 call chdir("../../bin/", io)
             end if
             folder = "../data/"//trim(filename)//"/"
-            if(sors_source)then
-                read(u,*)sors_offset
-                read(u,*)sors_spot_size
+            if(isors_source)then
+                read(u,*)isors_offset
             end if
         close(u)    
 

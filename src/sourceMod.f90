@@ -153,6 +153,74 @@ module source
 
     end subroutine create_spot
 
+
+    subroutine iSORS(pos, dir, bottle, seperation, ring)
+
+        use lensMod
+
+        implicit none
+
+        type(vector),       intent(OUT) :: pos, dir
+        type(glass_bottle), intent(IN)  :: bottle
+        real,               intent(IN)  :: seperation
+        logical,            intent(IN) :: ring
+
+        logical :: flag, skip
+        real :: alpha, axicon_n, radius, height, k, beam_width, base_pos
+        real :: posx, posy, posz, rad1, rad2, t
+        type(vector) :: centre, normal
+
+        axicon_n = 1.4
+        radius = 12.7d-3
+        height = 1.1d-3
+        alpha = atan(height / radius)
+        k = (radius / height)**2
+        beam_width = 0.5d-3
+
+        base_pos = (seperation + beam_width) / tan(alpha * (axicon_n -1.))
+        centre = vector(0., 0., 0.)
+
+        call rang(posx, posy, 0., beam_width)
+        pos = centre + vector(posx, posy, 2*height)
+        dir = vector(0., 0., -1.)
+
+        flag = intersect_cone(pos, dir, t, centre, radius, height)
+        if(flag)then
+            pos = pos + t*dir
+
+            normal = vector(2*(pos%x-centre%x) / k, 2*(pos%y-centre%y) / k, -2*(pos%z-centre%z)+2*height)
+            normal = normal *(-1.)! upper cone so invert normals
+            normal = normal%magnitude()
+            call reflect_refract(dir, normal, axicon_n, 1., flag)
+            ! move packet to required distance to get given seperation
+            t = (base_pos) / dir%z
+            pos = pos + t*dir
+            ! move packet into proper frame of reference, ie just beside the bottle
+            pos%z = bottle%radiusa + epsilon(1.)
+            if(ring)then
+                if(bottle%ellipse)then
+                    !need to divide by 2 to get a,b for ellipse equation
+                    rad1 = bottle%radiusa - bottle%thickness
+                    rad2 = bottle%radiusb - bottle%thickness
+                    flag = intersect_ellipse(pos, dir, t, bottle%centre, rad1, rad2)
+                else
+                    flag = intersect_cylinder(pos, dir, t, bottle%centre, bottle%radiusa - bottle%thickness)
+                end if
+                if(.not. flag)then
+                    error stop "no intersection with bottle!"
+                end if
+                pos = pos + t * dir
+            else
+                call bottle%backward(pos, dir, skip)
+                t = (0.d0-pos%z) / dir%z
+                pos = pos + t*dir
+                print*,pos
+            end if
+        end if
+
+    end subroutine iSORS
+
+
     subroutine ring(pos, dir, lens, r1, r2, bottleRadiusa, bottleRadiusb, ellipse, bottleOffset)
 
         use vector_class

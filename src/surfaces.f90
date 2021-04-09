@@ -137,8 +137,9 @@ module surfaces
     end function intersect_ellipse
 
 
-    logical function intersect_cone(orig, dir, t, radius, height)
-    ! calculates where a line, with origin:orig and direction:dir hits a cone, radius:radius and height:height
+    logical function intersect_cone(orig, dir, t, centre, radius, height)
+    ! calculates where a line, with origin:orig and direction:dir hits a cone, radius:radius and height:height with centre:centre.
+    ! centre is the point under the apex at the cone's base.
     ! returns true if intersection exists
     ! returns t, the paramertised parameter of the line equation
     ! adapted from scratchapixel and pbrt
@@ -148,10 +149,11 @@ module surfaces
 
         implicit none
 
-        type(vector), intent(IN)  :: orig, dir
+        type(vector), intent(IN)  :: orig, dir, centre
         real,         intent(IN)  :: radius, height
         real,         intent(OUT) :: t
 
+        type(vector) :: L
         real         :: t0, t1, a, b, c, tmp, k
 
 
@@ -159,9 +161,10 @@ module surfaces
         k = radius / height
         k = k**2
 
+        L = orig - centre
         a = dir%x**2 + dir%y**2 - (k*dir%z**2)
-        b = 2.*((dir%x * orig%x) + (dir%y * orig%y) - (k*dir%z * (orig%z - height)))
-        c = orig%x**2 + orig%y**2 - (k*(orig%z - height)**2)
+        b = 2.*((dir%x * L%x) + (dir%y * L%y) - (k*dir%z * (L%z - height)))
+        c = L%x**2 + L%y**2 - (k*(L%z - height)**2)
 
         if(.not. solveQuadratic(a, b, c, t0, t1))return
         if(t0 > t1)then

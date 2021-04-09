@@ -38,6 +38,7 @@ module lensMod
         logical      :: ellipse
         contains
         procedure :: forward => bottle_forward_sub
+        procedure :: backward => bottle_backward_sub
     end type glass_bottle
 
     interface glass_bottle
@@ -236,6 +237,77 @@ module lensMod
         end if
 
     end subroutine bottle_forward_sub
+
+    subroutine bottle_backward_sub(this, pos, dir, skip, u)
+
+        use stackMod, only : stack
+
+        implicit none
+
+        class(glass_bottle) :: this
+        type(vector), intent(INOUT) :: pos, dir
+        type(stack),  intent(INOUT), optional :: u
+        logical,      intent(OUT)   :: skip
+
+        type(vector) :: normal, orig
+        real         :: t, rad1, rad2
+        logical      :: flag
+
+        !outer surface
+        if(this%ellipse)then
+            !need to divide by 2 to get a,b for ellipse equation
+            rad1 = this%radiusa
+            rad2 = this%radiusb
+            flag = intersect_ellipse(pos, dir, t, this%centre, rad1, rad2)
+        else
+            flag = intersect_cylinder(pos, dir, t, this%centre, this%radiusa)
+        end if
+        if(.not. flag)then
+            skip = .true.
+            return
+        end if
+        pos = pos + t * dir
+        orig = pos
+        ! call u%push(pos)
+
+        orig%x = this%centre%x
+        normal = orig - this%centre
+        normal = normal%magnitude()
+
+        flag = .false.
+        call reflect_refract(dir, normal, 1., this%nbottle, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+        !outer surface
+        if(this%ellipse)then
+            flag = intersect_ellipse(pos, dir, t, this%centre, this%radiusa-this%thickness, this%radiusb-this%thickness)
+        else
+            flag = intersect_cylinder(pos, dir, t, this%centre, this%radiusa - this%thickness)
+        end if
+        if(.not. flag)then
+            skip = .true.
+            return
+        end if
+
+        pos = pos + t * dir
+        orig = pos
+        ! call u%push(pos)
+        orig%x = this%centre%x
+
+        normal = orig - this%centre
+        normal = normal%magnitude()
+
+        flag = .false.
+        call reflect_refract(dir, normal, this%nbottle, this%ncontents, flag)
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
+    end subroutine bottle_backward_sub
 
     subroutine plano_forward_sub(this, pos, dir, u, skip)
 
