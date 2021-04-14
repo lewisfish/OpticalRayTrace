@@ -31,9 +31,19 @@ Module vector_class
     end type vector
 
     private
-    public :: magnitude, vector, print
+    public :: magnitude, vector, print, e_dist
 
     contains
+
+        real function e_dist(a, b)
+        !calculate euclidean distance between two 3D points
+            implicit none
+
+            type(vector), intent(IN) :: a, b
+
+            e_dist = sqrt((a%x - b%x)**2 + (a%y - b%y)**2 + (a%z - b%z)**2)
+
+        end function e_dist
 
         type(vector) function vec_minus_vec(a, b)
 

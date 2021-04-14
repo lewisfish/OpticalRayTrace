@@ -117,9 +117,7 @@ module setup
                 call chdir("../../bin/", io)
             end if
             folder = "../data/"//trim(filename)//"/"
-            if(isors_source)then
-                read(u,*)isors_offset
-            end if
+            read(u,*)isors_offset
         close(u)    
 
     end subroutine read_settings

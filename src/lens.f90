@@ -33,9 +33,9 @@ module lensMod
 
 
     type :: glass_bottle
-        real         :: nbottle, ncontents, thickness, radiusa, radiusb
+        real         :: nbottle, ncontents, thickness, radiusa, radiusb, mua, mus
         type(vector) :: centre
-        logical      :: ellipse
+        logical      :: ellipse, beer_lambert
         contains
         procedure :: forward => bottle_forward_sub
         procedure :: backward => bottle_backward_sub
@@ -132,13 +132,15 @@ module lensMod
 
     type(glass_bottle) function init_bottle(file, wavelength) result(this)
 
+        use iso_fortran_env, Only : iostat_end
+
         implicit none
     
         real,         intent(IN) :: wavelength
         character(*), intent(IN) :: file
 
-        integer :: u
-        real    :: x, y, z, a1, b1, c1, a2, b2, c2
+        integer :: u, io
+        real    :: x, y, z, a1, b1, c1, a2, b2, c2, mua, mus
 
         open(newunit=u, file=file, status="old")
             read(u,*)this%thickness
@@ -153,11 +155,27 @@ module lensMod
             read(u,*)a2
             read(u,*)b2
             read(u,*)c2
+            read(u,*,iostat=io)mua
+            if(io == iostat_end)then
+                this%mua = 0.d0
+            else
+                this%mua = mua
+            end if
+            read(u,*,iostat=io)mus
+            if(io == iostat_end)then
+                this%mus = 0.d0
+            else
+                this%mus = mus
+            end if
         close(u)
 
         this%centre = vector(x, y, z)
         this%nbottle = dispersion(wavelength, a1, b1, c1)
         this%ncontents = cauchy(wavelength, a2, b2, c2)
+
+        this%beer_lambert = .false.
+        if(this%mua /= 0.0)this%beer_lambert = .true.
+
         if(this%radiusa /= this%radiusb)then
             this%ellipse = .true.
         else
@@ -170,6 +188,7 @@ module lensMod
     subroutine bottle_forward_sub(this, pos, dir, u, skip)
 
         use stackMod, only : stack
+        use random,   only : ran2
 
         implicit none
 
@@ -178,8 +197,8 @@ module lensMod
         type(stack),  intent(INOUT) :: u
         logical,      intent(OUT)   :: skip
 
-        type(vector) :: normal, orig
-        real         :: t, rad1, rad2
+        type(vector) :: normal, orig, newpos
+        real         :: t, rad1, rad2, dist, taudist, tau
         logical      :: flag
 
         !inner surface
@@ -221,7 +240,26 @@ module lensMod
             return
         end if
 
+        flag = .false.
+        if(this%beer_lambert)then
+            tau = -log(ran2())
+            !calculate optical distance of medium
+            newpos = pos + t*dir
+            dist = e_dist(pos, newpos)
+            taudist = dist * (this%mua + this%mus)
+            if(tau < taudist)then!interact
+                t = tau / (this%mua + this%mus)
+                !packet absorbed
+                flag = .true.
+            end if
+        end if
+
         pos = pos + t * dir
+        if(flag)then
+            skip = .true.
+            return
+        end if
+
         orig = pos
         ! call u%push(pos)
         orig%x = this%centre%x
@@ -241,6 +279,7 @@ module lensMod
     subroutine bottle_backward_sub(this, pos, dir, skip, u)
 
         use stackMod, only : stack
+        use random,   only : ran2
 
         implicit none
 
@@ -249,8 +288,8 @@ module lensMod
         type(stack),  intent(INOUT), optional :: u
         logical,      intent(OUT)   :: skip
 
-        type(vector) :: normal, orig
-        real         :: t, rad1, rad2
+        type(vector) :: normal, orig, newpos
+        real         :: t, rad1, rad2, dist, tau, taudist
         logical      :: flag
 
         !outer surface
@@ -287,9 +326,22 @@ module lensMod
         else
             flag = intersect_cylinder(pos, dir, t, this%centre, this%radiusa - this%thickness)
         end if
+
         if(.not. flag)then
             skip = .true.
             return
+        end if
+
+        if(this%beer_lambert)then
+            tau = -log(ran2())
+            !calculate optical distance of medium
+            newpos = pos + t*dir
+            dist = e_dist(pos, newpos)
+            taudist = dist * (this%mua + this%mus)
+            print*,tau,taudist
+            if(tau < taudist)then!interact
+                t = tau / (this%mua + this%mus)
+            end if
         end if
 
         pos = pos + t * dir

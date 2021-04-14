@@ -81,7 +81,8 @@ def make_settings(user_dict: Dict, file: str) -> None:
                 "L2_file": "planoConvex-f39.9mm.params",
                 "L3_file": "achromaticDoublet-f50.0mm.params",
                 "image_source": "bessel-smear.dat",
-                "data_folder": "settings"}
+                "data_folder": "settings",
+                "isors_offset": 0.0}
 
     # check all user keys are valid
     for user_key in user_dict:
@@ -264,6 +265,88 @@ def lens_experiment(bottles: List[List[str]]) -> None:
 def bessel_params_experiment() -> None:
     # TODO once bpm.py is fixed
     pass
+def iSORS_vs_Bessel():
+    """isb option"""
+
+    param_dict = {"light_source": "point", "use_tracker": "false",
+                  "make_images": "true", "image_diameter": "1e-2",
+                  "data_folder": "iSORS_vs_Bessel", "use_bottle": "true",
+                  "ring_width": 0.5e-3, "alpha": 5, "n axicon": 1.45,
+                  "L2_file": "planoConvex-f39.9mm.params"}
+
+    # experiment parameters
+    sources = ["isors", "point"]
+    offsets = np.linspace(0., 1.5e-3, 7)
+
+    # parameters required to calculate bottle offset for bessel beam
+    n_axicon = param_dict["n axicon"]
+    alpha = param_dict["alpha"] * np.pi / 180.
+    file = param_dict["L2_file"]
+    # read lens 2 file to get its back focal distance
+    with open("res/" + file, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            if "fb" in line:
+                data = line
+                break
+    items = data.split(" ")
+    l2fb = float(items[0].replace("d", "e"))
+    init_dist = 97.3e-3  # distance from axicon to L1
+
+    # read bottle file to get radius
+    with open("res/" + "clearBottle-small_0.0mm.params") as f:
+        lines = f.readlines()
+        for line in lines:
+            if "radius a" in line:
+                data = line
+                break
+    items = data.split(" ")
+    bottle_radiusA = float(items[0].replace("d", "e"))
+
+    # carry out experiment
+    for source in sources:
+        param_dict["light_source"] = source
+        for offset in offsets:
+            param_dict["isors_offset"] = offset
+            if source == "isors":
+                param_dict["bottle_file"] = f"clearBottle-small_0.0mm.params"
+            else:
+                # calculate distance to move bottle to get required iSORS spatial offset
+                prop_offset = ((l2fb*(offset + param_dict["ring_width"])) / (init_dist*np.tan(alpha* (n_axicon - 1)))) - bottle_radiusA
+                create_bottle_file(prop_offset)
+                param_dict["bottle_file"] = f"clearBottle-small_iSORS.params"
+
+            setup_f = f"test.params"
+            make_settings(param_dict, setup_f)
+            run_sim(setup_f, param_dict)
+
+
+def create_bottle_file(offset: float):
+    """
+    Create bottle file for iSORS experiment comparison with required offset of bottle to match iSORS setup
+
+    Parameters
+    ----------
+    offset : float
+        Required offset.
+    """
+
+    lines = ["2.d-3           thickness mm",
+             "17.5d-3         radius a mm in z direction",
+             "17.5d-3         radius b mm in y direction. if radius a != radius b then bottle is elliptical",
+             "0.0             x",
+             "0.0             y bottle position, centre of",
+             f"{offset}             z",
+             "1.5130          b1 glass dispersion coiefficents (soda-lime clear) https://refractiveindex.info/?shelf=glass&book=soda-lime&page=Rubin-clear",
+             "0.003169        b2",
+             "0.003962        b3",
+             "1.35265         c1 bottle contents coifficents (alcohol) https://refractiveindex.info/?shelf=organic&book=ethanol&page=Rheims",
+             "0.00306         c2",
+             "0.00002         c3"]
+
+    with open("res/clearBottle-small_iSORS.params", "w") as f:
+        for line in lines:
+            f.write(line + "\n")
 
 
 parser = argparse.ArgumentParser(usage="%(prog)s [OPTION]", description="")

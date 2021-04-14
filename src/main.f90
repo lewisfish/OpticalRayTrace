@@ -22,13 +22,16 @@ program raytrace
     type(achromatic_doublet) :: L3
     type(glass_bottle)       :: bottle
 
-    integer        :: image(-200:200, -200:200, 2), i, uring, upoint
+    integer, allocatable :: image(:, :, :), imgin(:,:)
     integer(int64) :: rcount, pcount
     real           :: d, angle, cosThetaMax, r1, r2
     real           :: besselDiameter, distance
     logical        :: skip, file_exists
-    integer        :: imgin(512,512), nphotonsLocal
+    integer        :: nphotonsLocal, i, uring, upoint
     character(len=:), allocatable :: filename
+
+    allocate(image(-200:200, -200:200, 2), imgin(512,512))
+
 
     file_exists = .false.
     image = 0
@@ -38,9 +41,9 @@ program raytrace
     call setup_sim(L2, L3, bottle, imgin, nphotonsLocal)
 
     filename = trim(adjustl(source_type))//"_bottle_"//str(use_bottle)//"_Ra_"// &
-                    str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
-                    str(bottle%centre%z,7)//"_"//str(iris)//"_"//str(iris_radius, 7)//"_L2f_"//str(L2%f,6)//"_L3f_"//str(L3%f,6)//&
-                    "_fo_"//str(fibre_offset, 7)
+            str(bottle%radiusa,7)//"_Rb_"//str(bottle%radiusb,7)//"_offset_"//&
+            str(bottle%centre%z,7)//"_"//str(iris)//"_"//str(iris_radius, 7)//"_L2f_"//str(L2%f,6)//"_L3f_"//str(L3%f,6)//&
+            "_fo_"//str(fibre_offset, 7)//"_alp_"//str(alpha*180/pi,7)//"_bwidth_"//str(ringWidth,7)//"_sep_"//str(isors_offset,7)
 
     !max angle for point source to lens
     angle = atan(L2%radius / L2%fb)
@@ -52,13 +55,13 @@ program raytrace
         print*,"Now bottle set at z position:",bottle%centre%z
     end if
     ! distance to surface of bottle
-    distance = L2%fb - (bottle%radiusa - bottle%centre%z)
+    distance = (bottle%radiusa + bottle%centre%z)
     !https://en.wikipedia.org/wiki/Axicon#/media/File:Erzeugen_von_Besselstrahlen_durch_ein_Axicon.png
     ! besselDiameter = 2.* distance * tan(alpha*(n-1.)) !old
 
     besselDiameter = distance*97.3d-3*tan(alpha* (n - 1)) /(l2%fb)
     !annulus radii, squared as this is required for sampling
-    r1 = besselDiameter/2.0d0 - ringWidth
+    r1 = besselDiameter - ringWidth
     r2 = (besselDiameter / 2.d0)**2
     r1 = r1**2
 
@@ -70,11 +73,12 @@ program raytrace
 
     !make repeatable
     call init_rng(123456789)
+
 !$OMP parallel default(none)&
 !$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
 !$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source, filename, folder)&
 !$OMP& shared(source_type, bar, iris, iris_radius, image_diameter, fibre_offset, L2file, L3file)&
-!$OMP& shared(r12, r22, factor, isors_source, isors_offset)&
+!$OMP& shared(isors_source, isors_offset, ringWidth)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
@@ -85,7 +89,12 @@ program raytrace
         if(isors_source)then
             call iSORS(pos, dir, bottle, L2, isors_offset, ringWidth, .true.)
             if(use_tracker)call tracker%push(pos)
-        !propagate though lens 2
+        else
+            call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
+            call bottle%forward(pos, dir, tracker, skip)
+            if(use_tracker)call tracker%push(pos)
+        end if
+        ! !propagate though lens 2
         call L2%forward(pos, dir, tracker, skip)
         if(use_tracker)call tracker%push(pos)
         

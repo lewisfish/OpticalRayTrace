@@ -115,7 +115,7 @@ module source
     end subroutine cross
 
     subroutine create_spot(pos, dir, cosThetaMax, nrays, n)
-
+    ! create spot diagram
         use vector_class
 
         implicit none
@@ -155,7 +155,8 @@ module source
 
 
     subroutine iSORS(pos, dir, bottle, lens, seperation, beam_width, ring)
-
+    ! create ring source on surface after axicon generation or
+    ! create ring source in bottle at centre if ring=.true.
         use lensMod
 
         implicit none
@@ -168,7 +169,7 @@ module source
 
         logical :: flag, skip
         real :: alpha, axicon_n, radius, height, k, base_pos
-        real :: posx, posy, posz, rad1, rad2, t, dist, nxp, nyp, nzp, r, theta
+        real :: posx, posy, rad1, rad2, t, dist, nxp, nyp, nzp, r, theta
         type(vector) :: centre, normal, lenspoint
 
         axicon_n = 1.4
@@ -188,6 +189,7 @@ module source
         if(flag)then
             pos = pos + t*dir
 
+            !derivative of cone cartesian equation
             normal = vector(2*(pos%x-centre%x) / k, 2*(pos%y-centre%y) / k, -2*(pos%z-centre%z)+2*height)
             normal = normal *(-1.)! upper cone so invert normals
             normal = normal%magnitude()
@@ -196,7 +198,7 @@ module source
             t = (base_pos) / dir%z
             pos = pos + t*dir
             ! move packet into proper frame of reference, ie just beside the bottle
-            pos%z = bottle%radiusa + epsilon(1.)
+            pos%z = bottle%radiusa + bottle%centre%z + epsilon(1.)
             if(ring)then
                 if(bottle%ellipse)then
                     !need to divide by 2 to get a,b for ellipse equation
@@ -213,7 +215,7 @@ module source
             else
                 call bottle%backward(pos, dir, skip)
                 !move to middle of bottle
-                t = (bottle%z - pos%z) / dir%z
+                t = (bottle%centre%z - pos%z) / dir%z
                 pos = pos + t*dir
             end if
         end if
@@ -241,6 +243,7 @@ module source
 
 
     subroutine ring(pos, dir, lens, r1, r2, bottleRadiusa, bottleRadiusb, ellipse, bottleOffset)
+    !create ring source on bottle surface
 
         use vector_class
 
@@ -363,9 +366,11 @@ module source
         integer,      intent(OUT) :: nphotonsLocal
         integer,      intent(OUT) :: imgin(512, 512)
 
-        real :: imgout(512, 512), tot, tmp, diff
+        real, allocatable :: imgout(:, :)
+        real :: tot, tmp, diff
         integer :: i, j, u
         
+        allocate(imgout(512, 512))
         imgout = 0
 
         open(newunit=u,file=filename, form="unformatted", access="stream", status="old")
