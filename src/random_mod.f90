@@ -50,7 +50,7 @@ module random
 
             implicit none
 
-            real,    intent(IN)    :: a, b
+            real, intent(IN)    :: a, b
 
             ranu = a + ran2() * (b - a)
 

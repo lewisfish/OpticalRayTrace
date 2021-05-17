@@ -16,6 +16,7 @@ SRCS =      constants.f90 \
 			lens.f90 \
 			sourceMod.f90 \
 			setupMod.f90 \
+			optics_system.f90 \
 			main.f90 
 			
 OBJECTS = $(SRCS:.f90=.o)

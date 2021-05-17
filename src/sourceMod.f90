@@ -154,14 +154,14 @@ module source
     end subroutine create_spot
 
 
-    subroutine iSORS(pos, dir, bottle, lens, seperation, beam_width, ring)
+    subroutine iSORS(pos, dir, bottle, L1, seperation, beam_width, ring)
     ! create ring source on surface after axicon generation or
     ! create ring source in bottle at centre if ring=.true.
         use lensMod
 
         implicit none
 
-        type(plano_convex), intent(IN)  :: lens
+        type(plano_convex), intent(IN)  :: L1
         type(vector),       intent(OUT) :: pos, dir
         type(glass_bottle), intent(IN)  :: bottle
         real,               intent(IN)  :: seperation, beam_width
@@ -221,14 +221,14 @@ module source
         end if
 
         if(ring)then
-            r = ranu(0., (lens%radius)**2)
+            r = ranu(0., (L1%radius)**2)
         else
-            r = ranu(0., (lens%radius+10d-3)**2)
+            r = ranu(0., (L1%radius+10d-3)**2)
         end if
         theta = ran2() * twopi
         posx = sqrt(r) * cos(theta)
         posy = sqrt(r) * sin(theta)
-        lenspoint = vector(posx, posy, lens%fb)
+        lenspoint = vector(posx, posy, L1%fb)
 
         dist = sqrt((lenspoint%x - pos%x)**2 + (lenspoint%y - pos%y)**2 + (lenspoint%z - pos%z)**2)
 

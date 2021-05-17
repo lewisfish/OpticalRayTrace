@@ -15,7 +15,7 @@ function showhelp
 
 function makebuild
 {
-  string="FCOMP=gfortran"
+  string="FCOMP=gfortran-10"
 
   if [ "$debug" = 1 ];then
     make clean && make debug $string

@@ -5,12 +5,18 @@ module lensMod
 
     implicit none
 
-    type :: plano_convex
-        real :: thickness, curve_radius, diameter, radius, fb, f
-        real :: n1, n2
+    type :: lens
+        real :: thickness, diameter, radius, fb, f, n1, n2
+        contains
+        procedure :: forward => fwdLens
+    end type lens
+
+    type, extends(lens) :: plano_convex
+        real :: curve_radius
         type(vector) :: centre, flatNormal
         contains
         procedure :: forward  => plano_forward_sub !flat face first
+        procedure :: backward  => plano_backward_sub
     end type plano_convex
 
     interface plano_convex
@@ -18,10 +24,9 @@ module lensMod
     end interface plano_convex
 
 
-    type :: achromatic_doublet
-        real :: thickness1, thickness2, thickness, R1, R2, R3
-        real :: diameter, radius, fb, f
-        real :: n1, n2, n3
+    type, extends(lens) :: achromatic_doublet
+        real :: thickness1, thickness2, R1, R2, R3
+        real :: n3
         type(vector) :: centre1, centre2, centre3
         contains
         procedure :: forward => doublet_forward_sub!r1 face first
@@ -47,6 +52,21 @@ module lensMod
 
 
     contains
+
+    subroutine fwdLens(this, pos, dir, u, skip, iris, iris_radius)
+        use stackMod, only: stack
+        implicit none
+        
+        class(lens) :: this
+        logical, optional, intent(IN) :: iris(2)
+        real, optional, intent(IN) :: iris_radius
+        logical, intent(OUT):: skip
+        type(stack), intent(INOUT) ::u
+        type(vector), intent(INOUT) :: pos, dir
+        
+        skip = .false.
+
+    end subroutine fwdLens
 
     type(achromatic_doublet) function init_achromatic_doublet(file, wavelength, D1, D1thickness) result(this)
 
@@ -96,15 +116,22 @@ module lensMod
     end function init_achromatic_doublet
 
 
-    type(plano_convex) function init_plano_convex(file, wavelength) result(this)
+    type(plano_convex) function init_plano_convex(file, wavelength, offset_in) result(this)
 
         implicit none
 
-        character(*), intent(IN) :: file
-        real,         intent(IN) :: wavelength
+        character(*),   intent(IN) :: file
+        real,           intent(IN) :: wavelength
+        real, optional, intent(IN) :: offset_in
 
         integer :: u
-        real    :: b1, b2, b3, c1, c2, c3
+        real    :: b1, b2, b3, c1, c2, c3, offset
+
+        if(present(offset_in))then
+            offset = offset_in
+        else
+            offset = 0.0d0
+        end if
 
         open(newunit=u,file=trim(file),status='old')
             read(u,*) this%thickness
@@ -124,7 +151,7 @@ module lensMod
         this%n2 = Sellmeier(wavelength, b1, b2, b3, c1, c2, c3)
         this%radius = this%diameter / 2.d0
 
-        this%centre = vector(0., 0., (this%fb + this%thickness) - this%curve_radius)
+        this%centre = vector(0., 0., offset + (this%fb + this%thickness) - this%curve_radius)
         this%flatNormal = vector(0., 0., -1.)
 
     end function init_plano_convex
@@ -361,7 +388,7 @@ module lensMod
 
     end subroutine bottle_backward_sub
 
-    subroutine plano_forward_sub(this, pos, dir, u, skip)
+    subroutine plano_forward_sub(this, pos, dir, u, skip, iris, iris_radius)
 
         use stackMod, only : stack
 
@@ -372,6 +399,8 @@ module lensMod
         type(vector), intent(INOUT) :: pos, dir
         type(stack),  intent(INOUT) :: u
         logical,      intent(OUT) :: skip
+        logical, optional, intent(IN) :: iris(2)
+        real, optional, intent(IN) :: iris_radius
 
         type(vector) :: curvedNormal
         real         :: d, t, r
@@ -464,7 +493,7 @@ module lensMod
     end subroutine plano_backward_sub
 
 
-    subroutine doublet_forward_sub(this, pos, dir, iris, iris_radius, u, skip)
+    subroutine doublet_forward_sub(this, pos, dir, u, skip, iris, iris_radius)
 
         use stackMod, only : stack
 
@@ -474,8 +503,8 @@ module lensMod
 
         type(vector), intent(INOUT) :: pos, dir
         type(stack),  intent(INOUT) :: u
-        logical,      intent(IN)    :: iris(2)
-        real,         intent(IN)    :: iris_radius
+        logical,optional,      intent(IN)    :: iris(2)
+        real,optional,         intent(IN)    :: iris_radius
         logical,      intent(OUT)   :: skip
 
         type(vector) :: normal, origpos
@@ -510,7 +539,7 @@ module lensMod
         ! make sure no rays get propagated that are outside lens radius
         ! this can double as an Iris
         r = sqrt(pos%x**2 + pos%y**2)
-        if(r > (this%radius*1.))then
+        if(r > (this%radius*1.0))then
             skip=.true.
             return
         end if

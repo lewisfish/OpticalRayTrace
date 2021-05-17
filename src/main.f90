@@ -7,6 +7,7 @@ program raytrace
     use vector_class, only : vector
     use setup
     use imageMod
+    use opticsystem, only : telescope
     use OMP_LIB
     use random, only : ran2, init_rng
     use iso_fortran_env, only: int64
@@ -18,8 +19,8 @@ program raytrace
     type(pbar)   :: bar
 
     !lens and bottles
-    type(plano_convex)       :: L2
-    type(achromatic_doublet) :: L3
+    type(plano_convex)       :: L2, L4
+    type(achromatic_doublet) :: L3, L5
     type(glass_bottle)       :: bottle
 
     integer, allocatable :: image(:, :, :), imgin(:,:)
@@ -93,34 +94,12 @@ program raytrace
             call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
             call bottle%forward(pos, dir, tracker, skip)
             if(use_tracker)call tracker%push(pos)
-        end if
-        ! !propagate though lens 2
-        call L2%forward(pos, dir, tracker, skip)
-        if(use_tracker)call tracker%push(pos)
-        
-        if(skip)then
-            rcount = rcount + 1_int64
-            if(use_tracker)call tracker%write_empty(uring)
-            cycle
-        end if
 
-        !propagate through lens 3
-        call L3%forward(pos, dir, iris, iris_radius, tracker, skip)
-        if(use_tracker)call tracker%push(pos)
+            call telescope(pos, dir, L2, L3, rcount, tracker, uring, skip)
 
-        if(skip)then
-            rcount = rcount + 1_int64
-            if(use_tracker)call tracker%write_empty(uring)
-            cycle
+            call makeImage(image, dir, pos, image_diameter, 1)
+
         end if
-
-        !move to image plane
-        d = ((2.*(L2%fb + L3%fb) + L2%thickness + L3%thickness + fibre_offset) - pos%z) / dir%z
-        ! d = (L2%thickness+L2%fb +L2%fb+L3%fb+  L3%thickness+L3%fb- pos%z) / dir%z
-        pos = pos + dir * d
-        if(use_tracker)call tracker%push(pos)
-        call makeImage(image, dir, pos, image_diameter, 1)
-        if(use_tracker)call tracker%write(uring)
     end do
 !$OMP end do
 
@@ -129,10 +108,10 @@ if(use_tracker)close(uring)
     wavelength = 843d-9
     L2 = plano_convex("../res/"//trim(L2file), wavelength)
     L3 = achromatic_doublet("../res/"//trim(L3file), wavelength, L2%fb, L2%thickness)
+    L4 = plano_convex("../res/L4.params", wavelength, offset_new)
+    L5 = achromatic_doublet("../res/L5.params", wavelength, L4%fb, L4%thickness)
 !$OMP end single
-    !max angle for point source to lens
-    ! angle = (13.*pi)/90.
-    ! cosThetaMax = cos(angle)
+
     bar = pbar(nphotons/ 1000000)
 
     if(use_tracker)then
@@ -162,31 +141,18 @@ if(use_tracker)close(uring)
             if(use_tracker)call tracker%push(pos)
         end if
 
-        call L2%forward(pos, dir, tracker, skip)
-        if(use_tracker)call tracker%push(pos)
+        if(skip)then
+            pcount = pcount + 1_int64
+            if(use_tracker)call tracker%write(upoint)
+            if(use_tracker)call tracker%write_empty(upoint)
+            cycle
+        end if
         
-        if(skip)then
-            pcount = pcount + 1_int64
-            if(use_tracker)call tracker%write_empty(upoint)
-            cycle
-        end if
+        call telescope(pos, dir, L2, L3, pcount, tracker, upoint, skip)
 
-        call L3%forward(pos, dir, iris, iris_radius, tracker, skip)
-        if(use_tracker)call tracker%push(pos)
+        call telescope(pos, dir, L4, L5, pcount, tracker, upoint, skip)
 
-        if(skip)then
-            pcount = pcount + 1_int64
-            if(use_tracker)call tracker%write_empty(upoint)
-            cycle
-        end if
-
-        !move to image plane
-        d = ((2.*(L2%fb + L3%fb) + L2%thickness + L3%thickness + fibre_offset) - pos%z) / dir%z
-
-        pos = pos + dir * d
-        if(use_tracker)call tracker%push(pos)
         call makeImage(image, dir, pos, image_diameter, 2)
-        if(use_tracker)call tracker%write(upoint)
     end do
 !$OMP end do
 !$omp end parallel
@@ -196,12 +162,13 @@ if(use_tracker)close(upoint)
 inquire(file=folder//"trans-stats.dat", exist=file_exists)
 if(.not. file_exists)then
     open(newunit=upoint, file=folder//"trans-stats.dat")
-    write(upoint, *)"r/%, p/%, l2%f, l3%f, bottle?, radiusA, radiusB, iris_pos, iris_radius, offset"
+    write(upoint, *)"r/%, p/%, l2%f, l3%f, bottle?, radiusA, radiusB, iris_pos, iris_radius, offset, source_type, seperation"
 else
     open(newunit=upoint, file=folder//"trans-stats.dat", position="append")
 end if
 write(upoint,*)100.*(1.-(rcount/(real(nphotons)))),",", 100.*(1.-(pcount/(real(nphotons)))),",", L2%f,",",&
-          L3%f,",", use_bottle,",", bottle%radiusa,",", bottle%radiusb,",", iris,",", str(iris_radius,7), ",", bottle%centre%z
+          L3%f,",", use_bottle,",", bottle%radiusa,",", bottle%radiusb,",", iris,",", str(iris_radius,7), ",", bottle%centre%z, &
+          ",", trim(adjustl(source_type))//",", isors_offset
 close(upoint)
 
 print"(A,1X,f8.2,A)","Ring  transmitted: ",100.*(1.-(rcount/(real(nphotons)))),"%"
