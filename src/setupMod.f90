@@ -4,9 +4,9 @@ module setup
 
     implicit none
         
-    real    :: alpha, ringwidth, wavelength, n, iris_radius, image_diameter, fibre_offset, isors_offset
+    real    :: alpha, ringwidth, wavelength, n, iris_radius, image_diameter, fibre_offset, isors_offset, spot_size
     integer :: nphotons
-    logical :: use_tracker, use_bottle, point_source, spot_source, isors_source, image_source, makeImages, iris(2)
+    logical :: use_tracker, use_bottle, point_source, spot_source, isors_source, image_source, makeImages, iris(2), crs_source
     character(len=256) :: source_type, L2file, L3file
     character(len=:), allocatable :: folder
 
@@ -61,6 +61,15 @@ module setup
             read(u,*) n
             read(u,*) use_bottle
             read(u,*) use_tracker
+#ifdef _OPENMP
+                if(use_tracker)then
+                    print*,"***************"
+                    print*,"Cannot track packets and use openmp!"
+                    print*,"Deselecting tracking of packets"
+                    print*,"***************"
+                    use_tracker = .false.
+                end if
+#endif
             read(u,*) makeImages
             if(nphotons > 10000 .and. use_tracker)error stop "Too many photons for tracker use!"
             if(use_tracker .and. makeImages)then
@@ -82,6 +91,8 @@ module setup
                 point_source = .true.
             elseif(trim(source_type) == "isors")then
                 isors_source = .true.
+            elseif(trim(source_type) == "crs")then
+                crs_source = .true.
             else
                 error stop "No such source type!"
             end if
@@ -104,7 +115,7 @@ module setup
             read(u,*) L2file
             L2 = plano_convex("../res/"//trim(L2file), wavelength)
             read(u,*) L3file
-            L3 = achromatic_doublet("../res/"//trim(L3file), wavelength, L2%fb, L2%thickness)
+            L3 = achromatic_doublet("../res/"//trim(L3file), wavelength, 2.*L2%fb + L2%thickness)
             read(u,*) filename
             call init_emit_image("../res/"//trim(filename), image, nphotons, nphotonsLocal)
             
@@ -118,6 +129,7 @@ module setup
             end if
             folder = "../data/"//trim(filename)//"/"
             read(u,*)isors_offset
+            read(u,*)spot_size
         close(u)    
 
     end subroutine read_settings

@@ -1,10 +1,11 @@
 program raytrace
 
     use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
-    use source,       only : ring, point, emit_image, create_spot, init_emit_image, cross, ring2
+    use source,       only : ring, point, emit_image, create_spot, init_emit_image, cross, ring2, point_on_bottle, iSORS
     use stackMod,     only : stack
     use utils,        only : str, pbar
     use vector_class, only : vector
+    use constants,    only : pi
     use setup
     use imageMod
     use opticsystem, only : telescope
@@ -25,8 +26,8 @@ program raytrace
 
     integer, allocatable :: image(:, :, :), imgin(:,:)
     integer(int64) :: rcount, pcount
-    real           :: d, angle, cosThetaMax, r1, r2
-    real           :: besselDiameter, distance
+    real           :: angle, cosThetaMax, r1, r2
+    real           :: besselDiameter, distance, img_plane_1, img_plane_2
     logical        :: skip, file_exists
     integer        :: nphotonsLocal, i, uring, upoint
     character(len=:), allocatable :: filename
@@ -75,11 +76,13 @@ program raytrace
     !make repeatable
     call init_rng(123456789)
 
+    img_plane_1 = 2.*(L2%fb + L3%fb) + L2%thickness + L3%thickness
+
 !$OMP parallel default(none)&
-!$OMP& shared(L2, L3, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
+!$OMP& shared(L2, L3, L4, L5, bottle, uring, upoint, nphotons, cosThetaMax, r1, r2, image, wavelength)&
 !$OMP& shared(use_tracker, use_bottle, image_source, point_source, spot_source, filename, folder)&
 !$OMP& shared(source_type, bar, iris, iris_radius, image_diameter, fibre_offset, L2file, L3file)&
-!$OMP& shared(isors_source, isors_offset, ringWidth)&
+!$OMP& shared(isors_source, isors_offset, spot_size, ringWidth, img_plane_1, img_plane_2)&
 !$omp& private(d, pos, dir, skip, tracker), firstprivate(imgin), reduction(+:rcount, pcount)
 !$OMP do
     do i = 1, nphotons
@@ -89,17 +92,18 @@ program raytrace
 
         if(isors_source)then
             call iSORS(pos, dir, bottle, L2, isors_offset, ringWidth, .true.)
-            if(use_tracker)call tracker%push(pos)
+        elseif(crs_source)then
+            call point_on_bottle(pos, dir, cosThetaMax, bottle, spot_size)
         else
             call ring(pos, dir, L2, r1, r2, bottle%Radiusa, bottle%radiusb, bottle%ellipse, bottle%centre%z)
-            call bottle%forward(pos, dir, tracker, skip)
-            if(use_tracker)call tracker%push(pos)
-
-            call telescope(pos, dir, L2, L3, rcount, tracker, uring, skip)
-
-            call makeImage(image, dir, pos, image_diameter, 1)
-
+            ! call bottle%forward(pos, dir, tracker, skip)
         end if
+
+        if(use_tracker)call tracker%push(pos)
+        call telescope(pos, dir, L2, L3, img_plane_1, rcount, tracker, uring, skip)
+        
+        if(use_tracker)call tracker%write(uring)
+        call makeImage(image, dir, pos, image_diameter, 1)
     end do
 !$OMP end do
 
@@ -107,10 +111,13 @@ if(use_tracker)close(uring)
 !$OMP single
     wavelength = 843d-9
     L2 = plano_convex("../res/"//trim(L2file), wavelength)
-    L3 = achromatic_doublet("../res/"//trim(L3file), wavelength, L2%fb, L2%thickness)
-    L4 = plano_convex("../res/L4.params", wavelength, offset_new)
-    L5 = achromatic_doublet("../res/L5.params", wavelength, L4%fb, L4%thickness)
+    L3 = achromatic_doublet("../res/"//trim(L3file), wavelength, 2.*L2%fb+ L2%thickness)
+    L4 = plano_convex("../res/"//trim(L2file), wavelength, 2.*L2%fb+ L2%thickness+L3%thickness+2.*L3%fb)
+    L5 = achromatic_doublet("../res/"//trim(L3file), wavelength, &
+                            2.*L4%fb+ L4%thickness+2.*L2%fb+ L2%thickness+L3%thickness+2.*L3%fb)
 !$OMP end single
+
+    img_plane_2 = 2.*(L2%fb+L3%fb+L4%fb+L5%fb) + L2%thickness+L3%thickness+L4%thickness+L5%thickness
 
     bar = pbar(nphotons/ 1000000)
 
@@ -127,7 +134,7 @@ if(use_tracker)close(uring)
 
         if(image_source)then
             call emit_image(imgin, pos, dir, L2)
-        elseif(point_source)then
+        elseif(point_source .or. crs_source)then
             ! call cross(pos, dir)
             call point(pos, dir, cosThetaMax)
         elseif(spot_source)then
@@ -148,10 +155,10 @@ if(use_tracker)close(uring)
             cycle
         end if
         
-        call telescope(pos, dir, L2, L3, pcount, tracker, upoint, skip)
-
-        call telescope(pos, dir, L4, L5, pcount, tracker, upoint, skip)
-
+        call telescope(pos, dir, L2, L3, img_plane_1, pcount, tracker, upoint, skip)
+        ! call telescope(pos, dir, L4, L5, img_plane_2, pcount, tracker, upoint, skip)
+        
+        if(use_tracker)call tracker%write(upoint)
         call makeImage(image, dir, pos, image_diameter, 2)
     end do
 !$OMP end do

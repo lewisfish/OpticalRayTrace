@@ -62,9 +62,9 @@ module random
             implicit none
 
             real,    intent(IN)    :: avg, sigma
-            real,    intent(OUT)   :: x,y
+            real,    intent(OUT)   :: x, y
             
-            real :: s, tmp
+            real :: s, tmp, const
 
             s = 1.
 
@@ -74,10 +74,12 @@ module random
                 s = y**2 + x**2
             end do
 
-            tmp = x*sqrt(-2.*log(s)/s)
+            const = sqrt(-2.*log(s)/s)
+
+            tmp = x*const
             x = avg + sigma*tmp
 
-            tmp = y*sqrt(-2.*log(s)/s)
+            tmp = y*const
             y = avg + sigma*tmp
 
         end subroutine rang

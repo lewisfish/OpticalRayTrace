@@ -54,30 +54,39 @@ module lensMod
     contains
 
     subroutine fwdLens(this, pos, dir, u, skip, iris, iris_radius)
+
         use stackMod, only: stack
+
         implicit none
         
         class(lens) :: this
-        logical, optional, intent(IN) :: iris(2)
-        real, optional, intent(IN) :: iris_radius
-        logical, intent(OUT):: skip
-        type(stack), intent(INOUT) ::u
-        type(vector), intent(INOUT) :: pos, dir
-        
-        skip = .false.
+
+        logical, optional, intent(IN)    :: iris(2)
+        real,    optional, intent(IN)    :: iris_radius
+        logical,           intent(OUT)   :: skip
+        type(stack),       intent(INOUT) :: u
+        type(vector),      intent(INOUT) :: pos, dir
 
     end subroutine fwdLens
 
-    type(achromatic_doublet) function init_achromatic_doublet(file, wavelength, D1, D1thickness) result(this)
+    type(achromatic_doublet) function init_achromatic_doublet(file, wavelength, offset_in) result(this)
 
         implicit none
 
-        character(*), intent(IN) :: file
-        real,         intent(IN) :: D1, wavelength, D1thickness
-        
+        character(*),   intent(IN) :: file
+        real,           intent(IN) :: wavelength
+        real, optional, intent(IN) :: offset_in
+
         integer :: u
         real    :: b11, b21, b31, c11, c21, c31
-        real    :: b12, b22, b32, c12, c22, c32
+        real    :: b12, b22, b32, c12, c22, c32, offset
+
+        if(present(offset_in))then
+            offset = offset_in
+        else
+            offset = 0.0d0
+        end if
+
 
         open(newunit=u,file=trim(file),status='old')
             read(u,*) this%thickness1
@@ -109,9 +118,9 @@ module lensMod
         this%radius = this%diameter / 2.d0
         this%thickness = this%thickness1 + this%thickness2
 
-        this%centre1 = vector(0., 0., D1 + D1thickness + (D1 + this%fb) + this%r1)
-        this%centre2 = vector(0., 0., D1 + D1thickness + (D1 + this%fb) + this%thickness1 - this%r2)
-        this%centre3 = vector(0., 0., D1 + D1thickness + (D1 + this%fb) + this%thickness - this%r3)
+        this%centre1 = vector(0., 0., offset + this%fb + this%r1)
+        this%centre2 = vector(0., 0., offset + this%fb + this%thickness1 - this%r2)
+        this%centre3 = vector(0., 0., offset + this%fb + this%thickness - this%r3)
 
     end function init_achromatic_doublet
 
@@ -403,14 +412,15 @@ module lensMod
         real, optional, intent(IN) :: iris_radius
 
         type(vector) :: curvedNormal
-        real         :: d, t, r
+        real         :: d, t, r, a
         logical      :: flag
 
         skip = .false.
 
 
         ! move to flat surface
-        d = (this%fb - pos%z) / dir%z
+        a = this%centre%z + this%curve_radius - this%thickness
+        d = (a - pos%z) / dir%z
         pos = pos + dir * d
         r = sqrt(pos%x**2 + pos%y**2)
         if(r > this%radius)then

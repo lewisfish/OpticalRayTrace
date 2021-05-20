@@ -40,7 +40,7 @@ module source
     end subroutine point
 
 
-    subroutine point_on_bottle(pos, dir, cosThetaMax, bottle, sors_radius, spot_radius)
+    subroutine point_on_bottle(pos, dir, cosThetaMax, bottle, spot_radius)
     ! emit isotropically from a point
     ! except bias towards lens
         use vector_class
@@ -50,7 +50,7 @@ module source
         implicit none
 
         type(vector),       intent(OUT) :: pos, dir
-        real,               intent(IN)  :: cosThetaMax, sors_radius, spot_radius
+        real,               intent(IN)  :: cosThetaMax, spot_radius
         type(glass_bottle), intent(IN)  :: bottle
 
         real :: phi, cosp, cost, sinp, sint, nxp, nyp, nzp, ran, t, tmp1, tmp2
@@ -69,13 +69,11 @@ module source
         nyp = sint * sinp
         nzp = cost
 
-        tmp1 = ranu(sors_radius-spot_radius, sors_radius+spot_radius)
-        tmp2 = ranu(sors_radius-spot_radius, sors_radius+spot_radius)
-        call rang(tmp1, tmp2, 0., 100d-6)
+        call rang(tmp1, tmp2, 0., spot_radius)
 
-        pos = vector(tmp1, tmp2, 1.d0)
+        pos = vector(tmp1, tmp2, 1.d0)! set far from bottle
         dir = vector(0., 0., -1.)
-
+        ! move packet to bottles surface
         flag = intersect_cylinder(pos, dir, t, bottle%centre, bottle%radiusa+bottle%thickness)
         pos = pos + dir*t
 

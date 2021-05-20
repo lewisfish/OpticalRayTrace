@@ -3,7 +3,7 @@ module opticsystem
 
     contains
 
-        subroutine telescope(pos, dir, L1, L2, count, tracker, u, skip)
+        subroutine telescope(pos, dir, L1, L2, img_plane, count, tracker, u, skip)
             
             use lensMod, only : plano_convex, achromatic_doublet, lens
             use stackMod, only : stack
@@ -20,6 +20,7 @@ module opticsystem
             integer,                  intent(IN)    :: u
             integer(int64),           intent(INOUT) :: count
             logical,                  intent(INOUT) :: skip
+            real, intent(IN) :: img_plane
             
             real :: d
 
@@ -44,11 +45,9 @@ module opticsystem
             end if
 
             !move to image plane
-            d = ((2.*(L1%fb + L2%fb) + L1%thickness + L2%thickness + fibre_offset) - pos%z) / dir%z
+            d = ((img_plane + fibre_offset) - pos%z) / dir%z
             pos = pos + dir * d
             if(use_tracker)call tracker%push(pos)
-            if(use_tracker)call tracker%write(u)
-
             
         end subroutine telescope
     
