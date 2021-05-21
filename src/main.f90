@@ -1,7 +1,7 @@
 program raytrace
 
     use lensMod,      only : plano_convex, achromatic_doublet, glass_bottle
-    use source,       only : ring, point, emit_image, create_spot, init_emit_image, cross, ring2, point_on_bottle, iSORS
+    use source,       only : ring, point, emit_image, create_spot, init_emit_image, cross, point_on_bottle, iSORS
     use stackMod,     only : stack
     use utils,        only : str, pbar
     use vector_class, only : vector

@@ -3,7 +3,7 @@ import subprocess
 import sys
 from typing import Dict, List
 
-import numpy as np
+import numpy as np  # type: ignore[import]
 
 
 def save_settings(file: str, place: str):
@@ -19,7 +19,7 @@ def save_settings(file: str, place: str):
     """
 
     command = f"cp {file} data/{place}/settings.params"
-    command = command.split()
+    command = command.split()  # type: ignore[assignment]
     subprocess.run(command)
 
 
@@ -43,7 +43,7 @@ def run_sim(settings_file: str, settings_dict: Dict) -> None:
 
     # run simulatrion
     command = f"./install.sh -n {ncores} -f {settings_file}"
-    command = command.split(" ")
+    command = command.split(" ")  # type: ignore[assignment]
     subprocess.run(command, check=True)
 
 
@@ -82,7 +82,8 @@ def make_settings(user_dict: Dict, file: str) -> None:
                 "L3_file": "achromaticDoublet-f50.0mm.params",
                 "image_source": "bessel-smear.dat",
                 "data_folder": "settings",
-                "isors_offset": 0.0}
+                "isors_offset": 0.0,
+                "crs_spot_size": 0.0}
 
     # check all user keys are valid
     for user_key in user_dict:
@@ -107,8 +108,6 @@ def make_settings(user_dict: Dict, file: str) -> None:
             f.write(str(defaults[key]) + " "*(35 - len(str(defaults[key]))) + "# " + key + "\n")
 
     save_settings("res/" + file, defaults["data_folder"])
-
-    return defaults
 
 
 def create_spot_diags(bottles: List[List[str]]) -> None:
