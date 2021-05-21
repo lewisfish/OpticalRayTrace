@@ -39,6 +39,7 @@ module setup
         integer,                  intent(OUT) :: nphotonsLocal, image(:, :)
 
         integer            :: i, u, io
+        real               :: offset
         character(len=256) :: arg, filename, iristmp
 
         point_source = .false.
@@ -130,6 +131,10 @@ module setup
             folder = "../data/"//trim(filename)//"/"
             read(u,*)isors_offset
             read(u,*)spot_size
+
+            offset = bottle%radiusa + bottle%centre%z
+            spot_size = (spot_size*(L2%fb - offset)) / L2%fb
+
         close(u)    
 
     end subroutine read_settings
