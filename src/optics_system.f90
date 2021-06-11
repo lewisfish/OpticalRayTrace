@@ -14,13 +14,13 @@ module opticsystem
 
             implicit none
 
-            class(lens),  intent(IN) :: L1, L2 
+            class(lens),              intent(IN)    :: L1, L2 
+            integer,                  intent(IN)    :: u
+            real,                     intent(IN)    :: img_plane
             type(stack),              intent(INOUT) :: tracker
             type(vector),             intent(INOUT) :: pos, dir
-            integer,                  intent(IN)    :: u
             integer(int64),           intent(INOUT) :: count
             logical,                  intent(INOUT) :: skip
-            real, intent(IN) :: img_plane
             
             real :: d
 

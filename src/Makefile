@@ -1,6 +1,6 @@
 FCOMP = gfortran-10
 FCFLAGS = -O2 -cpp -freal-4-real-8 -march=native -flto -mavx
-FCDEBUG = -g -fbacktrace -fcheck=all -fbounds-check -ffpe-trap=invalid,overflow,underflow,denormal -fanalyzer
+FCDEBUG = -g -fbacktrace -fcheck=all -fbounds-check -ffpe-trap=invalid,overflow,underflow,denormal
 FCBUILD = -Wall -Wextra -pedantic -std=f2008
 FCOPENMP = -fopenmp
 
@@ -11,6 +11,7 @@ SRCS =      constants.f90 \
 			vector_class.f90 \
 			stackMod.f90 \
 			random_mod.f90 \
+			stokes.f90 \
 			imageMod.f90 \
 			surfaces.f90 \
 			lens.f90 \

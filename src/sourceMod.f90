@@ -9,17 +9,24 @@ module source
         
     contains
     
-    subroutine point(pos, dir, cosThetaMax)
+    subroutine point(pos, dir, cosThetaMax, offset_in)
     ! emit isotropically from a point
     ! except bias towards lens
         use vector_class
 
         implicit none
 
-        type(vector), intent(OUT)   :: pos, dir
-        real,         intent(IN)    :: cosThetaMax
+        type(vector),   intent(OUT) :: pos, dir
+        real,           intent(IN)  :: cosThetaMax
+        real, optional, intent(IN)  :: offset_in
 
-        real :: phi, cosp, cost, sinp, sint, nxp, nyp, nzp, ran
+        real :: phi, cosp, cost, sinp, sint, nxp, nyp, nzp, ran, offset
+
+        if(present(offset_in))then
+            offset = offset_in
+        else
+            offset = 0.0d0
+        end if
 
         phi = twopi * ran2()
         cosp = cos(phi)
@@ -35,7 +42,7 @@ module source
         nzp = cost
 
         dir = vector(nxp, nyp, nzp)
-        pos = vector(0.d0, 0.d0, 0.d0)
+        pos = vector(0.d0, 0.d0, 0.d0 + offset)
 
     end subroutine point
 

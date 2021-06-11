@@ -6,9 +6,48 @@ module surfaces
 
     private
     public :: intersect_sphere, intersect_cylinder, intersect_ellipse, intersect_cone
-    public :: reflect_refract
+    public :: reflect_refract, tauint
 
     contains
+
+    subroutine tauint(pos, dir, mua, mus, centre, radius, dist, tflag)
+
+    use random, only : ran2
+
+        implicit none
+        
+        type(vector), intent(IN)  :: pos, dir, centre
+        real,         intent(IN)  :: mus, mua, radius
+        logical,      intent(OUT) :: tflag
+        real,         intent(OUT) :: dist
+        
+        logical :: flag
+        real    :: tau, mu_tot, tauradius
+
+        mu_tot = mua + mus
+        tau = -log(ran2())
+        flag = .false.
+        tflag = .false.
+        do
+            flag = intersect_cylinder(pos, dir, dist, centre, radius)
+            if(.not. flag)then
+                print*,""
+                print*,pos
+                print*,dir
+                print*,dist, centre, radius
+                error stop "no intersection"
+            end if
+            tauradius = dist * mu_tot
+            if(tau < tauradius)then
+                dist = tau / mu_tot
+                exit
+            else
+                dist = dist
+                tflag = .true.
+                exit
+            end if
+        end do
+    end subroutine tauint
 
     logical function intersect_sphere(orig, dir, t, centre, radius)
     ! calculates where a line, with origin:orig and direction:dir hits a sphere, centre:centre and radius:radius
@@ -234,7 +273,7 @@ module surfaces
         rflag = .FALSE.
         ! print*,fresnel(I, N, n1, n2)
         if(ran2() <= fresnel(I, N, n1, n2))then
-            ! call reflect(I, N)
+            call reflect(I, N)
             rflag = .true.
         else
             call refract(I, N, n1/n2)

@@ -1,12 +1,22 @@
 module imageMod
 
+    use vector_class
+
     implicit none
+
+    interface writeImage
+        module procedure writeImage2D
+        module procedure writeImage3D
+    end interface
+
+    interface makeImage
+        module procedure makeImage2D
+        module procedure makeImage3D
+    end interface
 
     contains
 
-    subroutine makeImage(image, dir, pos, diameter, layer)
-
-        use vector_class
+    subroutine makeImage2D(image, dir, pos, diameter, layer)
 
         implicit none
 
@@ -42,10 +52,42 @@ module imageMod
 !$omp atomic
         image(xp,yp, layer) = image(xp,yp, layer) + 1
 
-    end subroutine makeImage
+    end subroutine makeImage2D
 
 
-    subroutine writeImage(image, name)
+    subroutine makeImage3D(image, dir, pos, diameter, layer)
+        
+        implicit none
+        
+        integer,      intent(INOUT) :: image(-200:200, -200:200, 200, 2)
+        integer,      intent(IN)    :: layer
+        real,         intent(IN)    :: diameter
+        type(vector), intent(IN)    :: pos, dir
+        
+        real :: binwid, dz
+        integer :: xp, yp, zp, i
+        type(vector) :: new_pos
+
+        binwid = diameter / 401.
+        dz = diameter / 200.
+
+        do i = 0, 199
+
+            new_pos = pos + (i*dz)*dir
+            xp = floor(new_pos%x / binwid)
+            yp = floor(new_pos%y / binwid)
+
+            if(abs(xp) > 200 .or. abs(yp) > 200)then
+                return
+            end if
+!$omp atomic
+            image(xp, yp, i+1, layer) = image(xp, yp, i+1, layer) + 1
+        end do
+
+    end subroutine makeImage3D
+
+
+    subroutine writeImage2D(image, name)
 
         implicit none
         
@@ -66,5 +108,25 @@ module imageMod
         write(u)real(image(:,:,1)) + real(image(:,:,2))
         close(u)
 
-    end subroutine writeImage
+    end subroutine writeImage2D
+
+
+    subroutine writeImage3D(image, name)
+
+        implicit none
+        
+        integer,      intent(IN) :: image(-200:200, -200:200, 200, 2)
+        character(*), intent(IN) :: name
+
+        integer :: u
+
+        open(newunit=u,file=name//"-vol-ring.dat", access="stream", form="unformatted",status="replace")
+        write(u)real(image(:,:,:,1))
+        close(u)
+
+        open(newunit=u,file=name//"-vol-point.dat", access="stream", form="unformatted",status="replace")
+        write(u)real(image(:,:,:,2))
+        close(u)
+    end subroutine writeImage3D
+
 end module imageMod

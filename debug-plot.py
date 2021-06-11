@@ -35,6 +35,8 @@ def get_rays(file: str) -> List[List[List[float]]]:
             if length > 3:
                 skip_counter = 0
                 line = line.lstrip().rstrip()
+                line = line.replace("    ", " ")
+                line = line.replace("   ", " ")
                 line = line.replace("  ", " ")
                 data = line.split(" ")
                 tmp.append(list(map(float, data)))

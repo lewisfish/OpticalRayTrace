@@ -38,9 +38,10 @@ module lensMod
 
 
     type :: glass_bottle
-        real         :: nbottle, ncontents, thickness, radiusa, radiusb, mua, mus
+        real         :: nbottle, ncontents, thickness, radiusa, radiusb
+        real         :: mua_b, mus_b, mua_c, mus_c!optical properties for bottle (_b) and contents(_c)
         type(vector) :: centre
-        logical      :: ellipse, beer_lambert
+        logical      :: ellipse, scatter_b, scatter_c
         contains
         procedure :: forward => bottle_forward_sub
         procedure :: backward => bottle_backward_sub
@@ -193,15 +194,18 @@ module lensMod
             read(u,*)c2
             read(u,*,iostat=io)mua
             if(io == iostat_end)then
-                this%mua = 0.d0
+                this%mua_b = 0.d0
+                this%mus_b = 0.d0
+                this%mua_c = 0.d0
+                this%mus_c = 0.d0
             else
-                this%mua = mua
-            end if
-            read(u,*,iostat=io)mus
-            if(io == iostat_end)then
-                this%mus = 0.d0
-            else
-                this%mus = mus
+                this%mua_b = mua
+                read(u,*)mus
+                this%mus_b = mus
+                read(u,*)mua
+                this%mua_c = mua
+                read(u,*)mus
+                this%mus_c = mus
             end if
         close(u)
 
@@ -209,8 +213,10 @@ module lensMod
         this%nbottle = dispersion(wavelength, a1, b1, c1)
         this%ncontents = cauchy(wavelength, a2, b2, c2)
 
-        this%beer_lambert = .false.
-        if(this%mua /= 0.0)this%beer_lambert = .true.
+        this%scatter_b = .false.
+        this%scatter_c = .false.
+        if(this%mua_b+this%mus_b /= 0.0)this%scatter_b = .true.
+        if(this%mua_c+this%mus_c /= 0.0)this%scatter_c = .true.
 
         if(this%radiusa /= this%radiusb)then
             this%ellipse = .true.
@@ -225,6 +231,7 @@ module lensMod
 
         use stackMod, only : stack
         use random,   only : ran2
+        use stokes_mod
 
         implicit none
 
@@ -237,6 +244,7 @@ module lensMod
         real         :: t, rad1, rad2, dist, taudist, tau
         logical      :: flag
 
+        skip = .false.
         !inner surface
         if(this%ellipse)then
             !need to divide by 2 to get a,b for ellipse equation
@@ -250,6 +258,29 @@ module lensMod
             skip = .true.
             return
         end if
+
+        if(this%scatter_c)then
+            flag = .false.
+            call tauint(pos, dir, this%mua_c, this%mus_c, this%centre, this%radiusa - this%thickness, t, flag)
+            do while(.not.flag)
+                pos = pos + t * dir
+                if(ran2() < this%mus_c / (this%mus_c+this%mua_c))then
+                    !scatter absorb in contents
+                    call stokes(dir, 0.9)
+                else
+                    !absorb in contents
+                    skip = .true.
+                    return
+                end if
+                call tauint(pos, dir, this%mua_c, this%mus_c, this%centre, this%radiusa - this%thickness, t, flag)
+                if(sqrt(pos%x**2+pos%z**2) >= this%radiusa-this%thickness)exit
+            end do
+            if(dir%z < 0.)then
+                skip = .true.
+                return
+            end if
+        end if
+
         pos = pos + t * dir
         orig = pos
         ! call u%push(pos)
@@ -277,25 +308,31 @@ module lensMod
         end if
 
         flag = .false.
-        if(this%beer_lambert)then
-            tau = -log(ran2())
-            !calculate optical distance of medium
-            newpos = pos + t*dir
-            dist = e_dist(pos, newpos)
-            taudist = dist * (this%mua + this%mus)
-            if(tau < taudist)then!interact
-                t = tau / (this%mua + this%mus)
-                !packet absorbed
-                flag = .true.
+        !scatter absorb in bottle wall
+        if(this%scatter_b)then
+            flag = .false.
+            call tauint(pos, dir, this%mua_b, this%mus_b, this%centre, this%radiusa, t, flag)
+            do while(.not.flag)
+                pos = pos + t * dir
+
+                if(ran2() < this%mus_b / (this%mus_b+this%mua_b))then
+                    !scatter absorb in contents
+                    call stokes(dir, 0.9)
+                else
+                    !absorb in contents
+                    skip = .true.
+                    return
+                end if
+                call tauint(pos, dir, this%mua_b, this%mus_b, this%centre, this%radiusa, t, flag)
+                if(sqrt(pos%x**2+pos%z**2) >= this%radiusa)exit
+            end do
+            if(dir%z < 0.)then
+                skip = .true.
+                return
             end if
         end if
 
         pos = pos + t * dir
-        if(flag)then
-            skip = .true.
-            return
-        end if
-
         orig = pos
         ! call u%push(pos)
         orig%x = this%centre%x
@@ -366,18 +403,6 @@ module lensMod
         if(.not. flag)then
             skip = .true.
             return
-        end if
-
-        if(this%beer_lambert)then
-            tau = -log(ran2())
-            !calculate optical distance of medium
-            newpos = pos + t*dir
-            dist = e_dist(pos, newpos)
-            taudist = dist * (this%mua + this%mus)
-            print*,tau,taudist
-            if(tau < taudist)then!interact
-                t = tau / (this%mua + this%mus)
-            end if
         end if
 
         pos = pos + t * dir
