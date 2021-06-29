@@ -44,6 +44,9 @@ module imageMod
         end if
         binwid = diameter / 401.
 
+        !if pos is large then return as wint hit detector
+        if(pos%x > 1000 .or. pos%y > 1000)return
+
         xp = floor(pos%x / binwid)
         yp = floor(pos%y / binwid)
         if(abs(xp) > 200 .or. abs(yp) > 200)then

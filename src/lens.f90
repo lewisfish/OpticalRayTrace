@@ -266,7 +266,7 @@ module lensMod
                 pos = pos + t * dir
                 if(ran2() < this%mus_c / (this%mus_c+this%mua_c))then
                     !scatter absorb in contents
-                    call stokes(dir, 0.9)
+                    call stokes(dir, .65)
                 else
                     !absorb in contents
                     skip = .true.

@@ -57,7 +57,11 @@ program raytrace
         print*,"Now bottle set at z position:",bottle%centre%z
     end if
     ! distance to surface of bottle
-    distance = (bottle%radiusa + bottle%centre%z)
+    if(isors_source)then
+        distance = bottle%radiusa + isors_offset
+    else
+        distance = (bottle%radiusa + bottle%centre%z)
+    end if
     !https://en.wikipedia.org/wiki/Axicon#/media/File:Erzeugen_von_Besselstrahlen_durch_ein_Axicon.png
     besselDiameter = distance*97.3d-3*tan(alpha* (n - 1)) /(l2%fb) ! 97.3d-3 is the fb of L1
     !annulus radii, squared as this is required for sampling
